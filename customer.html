@@ -9,12 +9,11 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="King of Northern Customer">
+    <meta name="apple-mobile-web-app-title" content="King Northern Customer">
     <meta name="mobile-web-app-capable" content="yes">
     
     <link rel="stylesheet" href="style.css">
     <style>
-        /* Download Button Styles */
         .download-section {
             background: linear-gradient(135deg, #1a1a2e, #16213e);
             border-radius: 15px;
@@ -111,7 +110,8 @@
     <header>
         <div class="header-content">
             <div class="logo-container">
-                <img src="logo.png" alt="Logo" class="logo-img" onerror="this.style.display='none'">
+                <!-- CUSTOMER LOGO - Change this to your customer logo filename -->
+                <img src="customer-logo.png" alt="Logo" class="logo-img" onerror="this.style.display='none'">
                 <div>
                     <span class="app-title">King of Northern</span>
                     <span class="app-subtitle">🚗 Customer</span>
@@ -133,7 +133,6 @@
                 <input type="text" id="pickup" placeholder="Pickup Location *">
                 <input type="text" id="destination" placeholder="Destination *">
                 
-                <!-- Vehicle Type Selection -->
                 <div class="vehicle-selection">
                     <label>🚘 Select Vehicle Type:</label>
                     <select id="vehicle-type">
@@ -152,7 +151,6 @@
             <div id="ride-status"></div>
         </section>
 
-        <!-- Driver Info -->
         <section class="driver-info" id="driver-info" style="display:none;">
             <h2>🚗 Your Driver</h2>
             <div class="driver-card">
@@ -172,13 +170,11 @@
             </div>
         </section>
 
-        <!-- Nearby Drivers -->
         <section class="nearby-drivers" id="nearby-drivers" style="display:none;">
             <h2>📍 Nearby Drivers</h2>
             <div id="nearby-drivers-list"></div>
         </section>
 
-        <!-- Service Area -->
         <section class="map-section">
             <h2>📍 Service Area - Northern Kenya</h2>
             <div class="map">
@@ -194,7 +190,6 @@
             </div>
         </section>
 
-        <!-- ===== DOWNLOAD SECTION ===== -->
         <section class="download-section">
             <h3>📱 Download Customer App</h3>
             <p>Install the King of Northern Customer app on your phone for faster ride requests!</p>
@@ -212,7 +207,6 @@
         <p style="font-size:0.8rem; opacity:0.7;">Safe • Reliable • Affordable</p>
     </footer>
 
-    <!-- Register Service Worker -->
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js')
@@ -220,47 +214,35 @@
                 .catch(() => console.log('Service Worker registration failed'));
         }
 
-        // ============================================================
-        // DOWNLOAD APP FUNCTION
-        // ============================================================
         function downloadApp() {
-            // Check if the app is already installed (PWA)
             if (window.matchMedia('(display-mode: standalone)').matches) {
                 alert('✅ App is already installed on your device!');
                 return;
             }
 
-            // For Android - prompt PWA installation
             if (navigator.userAgent.toLowerCase().indexOf('android') > -1) {
-                // Show installation instructions
                 alert('📱 To install the app:\n\n1. Tap the three dots (⋮) in the top right\n2. Select "Add to Home screen"\n3. Tap "Install"\n\nThe app will appear on your home screen!');
                 return;
             }
 
-            // For iOS - prompt PWA installation
             if (navigator.userAgent.toLowerCase().indexOf('iphone') > -1 || navigator.userAgent.toLowerCase().indexOf('ipad') > -1) {
                 alert('📱 To install the app:\n\n1. Tap the Share icon (square with arrow)\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add"\n\nThe app will appear on your home screen!');
                 return;
             }
 
-            // For desktop - show a message
             alert('📱 Please open this page on your mobile device to install the app.\n\nOr click "Add to Home Screen" in your browser menu.');
         }
 
-        // Show install prompt on mobile
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
         });
 
-        // Detect if app is already installed
         window.addEventListener('appinstalled', () => {
             console.log('App installed successfully!');
         });
-    </script>
 
-    <script>
         let statusInterval;
 
         async function requestRide() {
