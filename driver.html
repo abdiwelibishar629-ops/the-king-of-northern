@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>👑 The King of Northern - Driver</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <div class="header-content">
+            <div class="logo">
+                <img src="logo.png" alt="Logo" class="logo-img" onerror="this.style.display='none'">
+                <span class="crown">👑</span>
+                <h1>The King of Northern</h1>
+            </div>
+            <span class="tagline">🚗 Driver App</span>
+        </div>
+    </header>
+
+    <div class="container">
+
+        <section id="login-section" class="driver-login">
+            <h2>🔐 Driver Login</h2>
+            <div class="form-group">
+                <input type="text" id="driver-username" placeholder="Username" value="driver">
+                <input type="password" id="driver-password" placeholder="Password" value="driver123">
+                <button onclick="driverLogin()" class="btn-request">🚗 Login</button>
+            </div>
+            <div id="login-status"></div>
+        </section>
+
+        <section id="dashboard-section" style="display:none;">
+            <div class="driver-profile">
+                <div class="driver-avatar">👨‍✈️</div>
+                <div>
+                    <h2 id="driver-name-display">Driver</h2>
+                    <p style="color:#27ae60;">✅ Online - Ready to serve</p>
+                    <p id="driver-vehicle-display" style="font-size:0.9rem; color:#7f8c8d;"></p>
+                </div>
+                <button onclick="driverLogout()" class="btn-logout">🚪 Logout</button>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card"><div class="number" id="pending-count">0</div><div class="label">⏳ Pending</div></div>
+                <div class="stat-card"><div class="number" id="active-count">0</div><div class="label">🚗 Active Rides</div></div>
+                <div class="stat-card revenue"><div class="number" id="completed-count">0</div><div class="label">✅ Completed</div></div>
+            </div>
+
+            <h3>📋 Ride Requests</h3>
+            <div id="requests-container"></div>
+        </section>
+
+    </div>
+
+    <footer>
+        <p>👑 The King of Northern © 2024 | Driver Dashboard</p>
+    </footer>
+
+    <script>
+        let driverToken = null;
+        let currentDriver = null;
+        let refreshInterval = null;
+
+        async function driverLogin() {
+            const username = document.getElementById('driver-username').value.trim();
+            const password = document.getElementById('driver-password').value.trim();
+
+            if (!username || !password) {
+                alert('Please enter username and password');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/driver-login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    driverToken = result.token;
+                    
+                    const driversRes = await fetch('/api/drivers');
+                    const drivers = await driversRes.json();
+                    if (drivers.length > 0) {
+                        currentDriver = drivers[0];
+                    }
+
+                    document.getElementById('login-section').style.display = 'none';
+                    document.getElementById('dashboard-section').style.display = 'block';
+                    document.getElementById('driver-name-display').textContent = currentDriver ? currentDriver.name : 'Driver';
+                    document.getElementById('driver-vehicle-display').textContent = 
+                        currentDriver ? `🚗 ${currentDriver.car} (${currentDriver.type}) - ${currentDriver.plate}` : '';
+
+                    loadRequests();
+                    refreshInterval = setInterval(loadRequests, 5000);
+                } else {
+                    document.getElementById('login-status').innerHTML = `
+                        <div class="error-message">❌ ${result.error}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('login-status').innerHTML = `
+                    <div class="error-message">❌ Error connecting to server</div>
+                `;
+            }
+        }
+
+        function driverLogout() {
+            if (refreshInterval) clearInterval(refreshInterval);
+            driverToken = null;
+            currentDriver = null;
+            document.getElementById('login-section').style.display = 'block';
+            document.getElementById('dashboard-section').style.display = 'none';
+        }
+
+        async function loadRequests() {
+            try {
+                const res = await fetch('/api/driver/requests');
+                const requests = await res.json();
+
+                const pending = requests.filter(r => r.status === 'pending');
+                document.getElementById('pending-count').textContent = pending.length;
+
+                const container = document.getElementById('requests-container');
+
+                if (requests.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <h3>📭 No ride requests</h3>
+                            <p>Waiting for customers to request a King's ride...</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = requests.map(req => `
+                    <div class="request-card">
+                        <div class="request-header">
+                            <strong>Request #${req.id}</strong>
+                            <span class="status-badge pending">⏳ Pending</span>
+                        </div>
+                        <div class="request-body">
+                            <p><strong>👤 Customer:</strong> ${req.customerName}</p>
+                            <p><strong>📞 Phone:</strong> ${req.phone}</p>
+                            <p><strong>📍 Pickup:</strong> ${req.pickup}</p>
+                            <p><strong>🏁 Destination:</strong> ${req.destination}</p>
+                            <p><strong>🚘 Vehicle:</strong> ${req.vehicleType || 'Any'}</p>
+                            <p><strong>⏱️ Requested:</strong> ${new Date(req.timestamp).toLocaleString()}</p>
+                        </div>
+                        <div class="request-actions">
+                            <button onclick="confirmRide(${req.id})" class="btn-confirm">✅ Confirm Ride</button>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                console.error('Error loading requests:', error);
+            }
+        }
+
+        async function confirmRide(requestId) {
+            if (!currentDriver) {
+                alert('Please login again.');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/driver/confirm-ride', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ requestId, driverId: currentDriver.id })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    alert(`✅ Ride confirmed!\n\n🚗 ${result.driver.name}\n📞 ${result.driver.phone}\n🚘 ${result.driver.type} (${result.driver.seats} seats)\n🔢 ${result.driver.plate}`);
+                    loadRequests();
+                } else {
+                    alert('❌ ' + result.error);
+                }
+            } catch (error) {
+                alert('❌ Error confirming ride');
+            }
+        }
+
+        async function completeRide(requestId) {
+            if (!confirm('Mark this ride as completed?')) return;
+
+            try {
+                const res = await fetch('/api/driver/complete-ride', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ requestId, driverId: currentDriver.id })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    alert('✅ Ride completed!');
+                    loadRequests();
+                } else {
+                    alert('❌ ' + result.error);
+                }
+            } catch (error) {
+                alert('❌ Error completing ride');
+            }
+        }
+    </script>
+
+</body>
+</html>
