@@ -11,8 +11,9 @@ app.use(express.json());
 app.use(express.static('.'));
 
 // ============================================================
-// MYSQL CONNECTION - XAMPP phpMyAdmin
+// MYSQL CONNECTION - XAMPP phpMyAdmin (Local)
 // ============================================================
+// For local development with XAMPP
 const db = mysql.createConnection({
     host: 'localhost',
     user: 'root',
@@ -31,7 +32,7 @@ db.connect((err) => {
 // ============================================================
 // JWT SECRET
 // ============================================================
-const JWT_SECRET = 'king-of-northern-super-secret-key-2024';
+const JWT_SECRET = process.env.JWT_SECRET || 'king-of-northern-super-secret-key-2024';
 
 // ============================================================
 // PWA SUPPORT
@@ -64,7 +65,7 @@ function generateToken(user) {
 }
 
 // ============================================================
-// LOGIN API - FIXED
+// LOGIN API
 // ============================================================
 app.post('/api/auth/login', (req, res) => {
     const { email, phone, password } = req.body;
