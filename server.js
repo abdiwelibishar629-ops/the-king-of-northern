@@ -22,7 +22,14 @@ app.get('/manifest.json', (req, res) => {
 });
 
 // ============================================================
-// VEHICLES & DRIVERS DATA
+// LANDING PAGE - Serve index.html
+// ============================================================
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/index.html');
+});
+
+// ============================================================
+// VEHICLES & DRIVERS DATA - Northern Kenya
 // ============================================================
 const drivers = [
     { 
@@ -186,7 +193,7 @@ let activeRides = [];
 // HELPER FUNCTION - Calculate distance between two coordinates (in km)
 // ============================================================
 function getDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371;
+    const R = 6371; // Earth's radius in km
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLon = (lon2 - lon1) * Math.PI / 180;
     const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -208,14 +215,16 @@ app.post('/api/request-ride', (req, res) => {
         return res.status(400).json({ error: 'All fields required' });
     }
 
+    // Customer location (for demo, using Garissa as default)
     const customerLat = -0.4167;
     const customerLng = 39.6333;
 
+    // Find nearby available drivers
     const nearbyDrivers = drivers.filter(d => {
         if (d.status !== 'available') return false;
         if (vehicleType && d.type !== vehicleType) return false;
         const distance = getDistance(customerLat, customerLng, d.lat, d.lng);
-        return distance <= 50;
+        return distance <= 50; // Within 50km radius
     });
 
     if (nearbyDrivers.length === 0) {
@@ -225,15 +234,17 @@ app.post('/api/request-ride', (req, res) => {
         });
     }
 
+    // Sort by distance (closest first)
     nearbyDrivers.sort((a, b) => {
         const distA = getDistance(customerLat, customerLng, a.lat, a.lng);
         const distB = getDistance(customerLat, customerLng, b.lat, b.lng);
         return distA - distB;
     });
 
+    // Select the closest driver
     const selectedDriver = nearbyDrivers[0];
     const distance = getDistance(customerLat, customerLng, selectedDriver.lat, selectedDriver.lng);
-    const estimatedTime = Math.round(distance / 30 * 60) + 5;
+    const estimatedTime = Math.round(distance / 30 * 60) + 5; // Rough estimate in minutes
 
     const request = {
         id: requestId++,
@@ -415,6 +426,13 @@ app.get('/api/drivers', (req, res) => {
 });
 
 // ============================================================
+// ROOT ROUTE - Redirect to landing page
+// ============================================================
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/index.html');
+});
+
+// ============================================================
 // START SERVER
 // ============================================================
 app.listen(PORT, () => {
@@ -423,4 +441,5 @@ app.listen(PORT, () => {
     console.log(`📍 Service Area: Northern Kenya`);
     console.log(`🚘 Vehicle Types: Sedan, Hatchback, MPV, SUV, Station Wagon`);
     console.log(`📱 PWA Support: Enabled`);
+    console.log(`🌐 Visit: http://localhost:${PORT}`);
 });
