@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const mongoose = require('mongoose');
+const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
@@ -15,39 +15,27 @@ app.use(express.json());
 app.use(express.static('.'));
 
 // ============================================================
-// DATABASE CONNECTION
+// MYSQL DATABASE CONNECTION
 // ============================================================
-// Replace with your MongoDB connection string
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/king-of-northern';
+const db = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    password: '', // XAMPP default is empty
+    database: 'king_of_northern'
+});
 
-mongoose.connect(MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-})
-.then(() => console.log('✅ MongoDB Connected'))
-.catch(err => console.error('❌ MongoDB Connection Error:', err));
-
-// ============================================================
-// MODELS
-// ============================================================
-const User = require('./models/User');
-const Ride = require('./models/Ride');
+db.connect((err) => {
+    if (err) {
+        console.error('❌ MySQL Connection Error:', err);
+        return;
+    }
+    console.log('✅ MySQL Connected Successfully');
+});
 
 // ============================================================
 // JWT SECRET
 // ============================================================
-const JWT_SECRET = process.env.JWT_SECRET || 'king-of-northern-secret-key-2024';
-
-// ============================================================
-// EMAIL CONFIGURATION (for verification codes)
-// ============================================================
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER || 'your-email@gmail.com',
-        pass: process.env.EMAIL_PASS || 'your-app-password'
-    }
-});
+const JWT_SECRET = 'king-of-northern-secret-key-2024';
 
 // ============================================================
 // PWA SUPPORT
@@ -73,7 +61,7 @@ app.get('/', (req, res) => {
 });
 
 // ============================================================
-// HELPERS
+// HELPER FUNCTIONS
 // ============================================================
 function generateVerificationCode() {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -81,247 +69,23 @@ function generateVerificationCode() {
 
 function generateToken(user) {
     return jwt.sign(
-        { id: user._id, email: user.email, role: user.role },
+        { id: user.id, email: user.email, role: user.role },
         JWT_SECRET,
         { expiresIn: '7d' }
     );
 }
 
 // ============================================================
-// AUTH APIs
+// EMAIL CONFIGURATION (for verification)
 // ============================================================
-
-// ===== REGISTER CUSTOMER =====
-app.post('/api/auth/register/customer', async (req, res) => {
-    try {
-        const { fullName, email, phone, password } = req.body;
-
-        // Check if user exists
-        const existingUser = await User.findOne({ $or: [{ email }, { phone }] });
-        if (existingUser) {
-            return res.status(400).json({ error: 'Email or phone already registered' });
-        }
-
-        // Generate verification code
-        const verificationCode = generateVerificationCode();
-        const codeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-        // Create user
-        const user = new User({
-            fullName,
-            email: email.toLowerCase(),
-            phone,
-            password,
-            role: 'customer',
-            verificationCode,
-            verificationCodeExpires: codeExpires
-        });
-
-        await user.save();
-
-        // Send verification email
-        await sendVerificationEmail(email, fullName, verificationCode);
-
-        // Send verification SMS (using Twilio or similar)
-        // await sendVerificationSMS(phone, verificationCode);
-
-        res.json({
-            success: true,
-            message: 'Registration successful! Check your email and phone for verification code.',
-            userId: user._id
-        });
-
-    } catch (error) {
-        console.error('Registration error:', error);
-        res.status(500).json({ error: 'Registration failed. Please try again.' });
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL_USER || 'your-email@gmail.com',
+        pass: process.env.EMAIL_PASS || 'your-app-password'
     }
 });
 
-// ===== REGISTER DRIVER =====
-app.post('/api/auth/register/driver', async (req, res) => {
-    try {
-        const { fullName, email, phone, password, driverLicense, carModel, carPlate } = req.body;
-
-        // Validate driver fields
-        if (!driverLicense || !carModel || !carPlate) {
-            return res.status(400).json({ error: 'Driver license, car model, and car plate required' });
-        }
-
-        // Check if user exists
-        const existingUser = await User.findOne({ $or: [{ email }, { phone }] });
-        if (existingUser) {
-            return res.status(400).json({ error: 'Email or phone already registered' });
-        }
-
-        // Check if driver license already used
-        const existingDriver = await User.findOne({ driverLicense });
-        if (existingDriver) {
-            return res.status(400).json({ error: 'Driver license already registered' });
-        }
-
-        // Generate verification code
-        const verificationCode = generateVerificationCode();
-        const codeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-        // Create driver
-        const user = new User({
-            fullName,
-            email: email.toLowerCase(),
-            phone,
-            password,
-            role: 'driver',
-            driverLicense,
-            carModel,
-            carPlate,
-            verificationCode,
-            verificationCodeExpires: codeExpires
-        });
-
-        await user.save();
-
-        // Send verification email
-        await sendVerificationEmail(email, fullName, verificationCode);
-
-        res.json({
-            success: true,
-            message: 'Driver registration successful! Check your email for verification code.',
-            userId: user._id
-        });
-
-    } catch (error) {
-        console.error('Driver registration error:', error);
-        res.status(500).json({ error: 'Registration failed. Please try again.' });
-    }
-});
-
-// ===== VERIFY EMAIL/PHONE =====
-app.post('/api/auth/verify', async (req, res) => {
-    try {
-        const { email, phone, code } = req.body;
-
-        if (!email && !phone) {
-            return res.status(400).json({ error: 'Email or phone required' });
-        }
-
-        const user = await User.findOne({ 
-            $or: [{ email: email?.toLowerCase() }, { phone }],
-            verificationCode: code,
-            verificationCodeExpires: { $gt: new Date() }
-        });
-
-        if (!user) {
-            return res.status(400).json({ error: 'Invalid or expired verification code' });
-        }
-
-        user.isVerified = true;
-        user.verificationCode = null;
-        user.verificationCodeExpires = null;
-        await user.save();
-
-        const token = generateToken(user);
-
-        res.json({
-            success: true,
-            message: 'Verification successful!',
-            token,
-            user: {
-                id: user._id,
-                fullName: user.fullName,
-                email: user.email,
-                phone: user.phone,
-                role: user.role,
-                isVerified: user.isVerified,
-                driverLicense: user.driverLicense,
-                carModel: user.carModel,
-                carPlate: user.carPlate
-            }
-        });
-
-    } catch (error) {
-        console.error('Verification error:', error);
-        res.status(500).json({ error: 'Verification failed' });
-    }
-});
-
-// ===== RESEND VERIFICATION CODE =====
-app.post('/api/auth/resend-code', async (req, res) => {
-    try {
-        const { email, phone } = req.body;
-
-        const user = await User.findOne({ $or: [{ email: email?.toLowerCase() }, { phone }] });
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        const newCode = generateVerificationCode();
-        user.verificationCode = newCode;
-        user.verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
-        await user.save();
-
-        await sendVerificationEmail(user.email, user.fullName, newCode);
-
-        res.json({
-            success: true,
-            message: 'New verification code sent to your email'
-        });
-
-    } catch (error) {
-        console.error('Resend code error:', error);
-        res.status(500).json({ error: 'Failed to resend code' });
-    }
-});
-
-// ===== LOGIN =====
-app.post('/api/auth/login', async (req, res) => {
-    try {
-        const { email, phone, password } = req.body;
-
-        if (!email && !phone) {
-            return res.status(400).json({ error: 'Email or phone required' });
-        }
-
-        const user = await User.findOne({ $or: [{ email: email?.toLowerCase() }, { phone }] });
-        if (!user) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-
-        if (!user.isVerified) {
-            return res.status(401).json({ error: 'Please verify your account first' });
-        }
-
-        const isMatch = await user.comparePassword(password);
-        if (!isMatch) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-
-        const token = generateToken(user);
-
-        res.json({
-            success: true,
-            token,
-            user: {
-                id: user._id,
-                fullName: user.fullName,
-                email: user.email,
-                phone: user.phone,
-                role: user.role,
-                isVerified: user.isVerified,
-                driverLicense: user.driverLicense,
-                carModel: user.carModel,
-                carPlate: user.carPlate,
-                rating: user.rating
-            }
-        });
-
-    } catch (error) {
-        console.error('Login error:', error);
-        res.status(500).json({ error: 'Login failed' });
-    }
-});
-
-// ============================================================
-// HELPERS - Email/SMS
-// ============================================================
 async function sendVerificationEmail(email, name, code) {
     try {
         await transporter.sendMail({
@@ -335,16 +99,14 @@ async function sendVerificationEmail(email, name, code) {
                     </div>
                     <div style="background: #16213e; padding: 30px; border-radius: 10px;">
                         <h2 style="color: #f1c40f;">Hello ${name}! 👋</h2>
-                        <p style="font-size: 16px; line-height: 1.6;">Thank you for registering with King of Northern. Please use the verification code below to complete your registration:</p>
+                        <p style="font-size: 16px; line-height: 1.6;">Thank you for registering. Please use the verification code below:</p>
                         <div style="text-align: center; padding: 20px; margin: 20px 0; background: #0f3460; border-radius: 10px; border: 2px solid #f1c40f;">
                             <h1 style="font-size: 40px; letter-spacing: 10px; color: #f1c40f;">${code}</h1>
                         </div>
                         <p style="font-size: 14px; color: #bdc3c7;">This code will expire in <strong style="color: #f1c40f;">10 minutes</strong>.</p>
-                        <p style="font-size: 14px; color: #bdc3c7;">If you didn't request this, please ignore this email.</p>
                     </div>
                     <div style="text-align: center; padding: 20px; color: #7f8c8d; font-size: 12px;">
                         <p>© 2024 King of Northern. All rights reserved.</p>
-                        <p>Northern Kenya's Premier Ride Hailing Service</p>
                     </div>
                 </div>
             `
@@ -356,160 +118,474 @@ async function sendVerificationEmail(email, name, code) {
 }
 
 // ============================================================
-// RIDE APIs
+// AUTH APIs - CUSTOMER REGISTRATION
 // ============================================================
+app.post('/api/auth/register/customer', async (req, res) => {
+    const { fullName, email, phone, password } = req.body;
 
-// Customer requests a ride
-app.post('/api/request-ride', async (req, res) => {
+    if (!fullName || !email || !phone || !password) {
+        return res.status(400).json({ error: 'All fields required' });
+    }
+
+    if (password.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
     try {
-        const { customerId, pickup, destination, vehicleType } = req.body;
+        const verificationCode = generateVerificationCode();
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-        if (!customerId || !pickup || !destination) {
-            return res.status(400).json({ error: 'All fields required' });
-        }
+        const sql = `INSERT INTO users 
+            (full_name, email, phone, password, role, verification_code, verification_code_expires) 
+            VALUES (?, ?, ?, ?, 'customer', ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`;
 
-        // Check if customer has pending rides
-        const pendingRide = await Ride.findOne({ 
-            customerId, 
-            status: { $in: ['pending', 'confirmed', 'in_progress'] } 
+        db.query(sql, [fullName, email, phone, hashedPassword, verificationCode], async (err, result) => {
+            if (err) {
+                if (err.code === 'ER_DUP_ENTRY') {
+                    return res.status(400).json({ error: 'Email or phone already registered' });
+                }
+                console.error('Registration error:', err);
+                return res.status(500).json({ error: 'Registration failed' });
+            }
+
+            // Send verification email
+            await sendVerificationEmail(email, fullName, verificationCode);
+
+            res.json({
+                success: true,
+                message: 'Registration successful! Check your email for verification code.',
+                userId: result.insertId
+            });
         });
 
-        if (pendingRide) {
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Registration failed' });
+    }
+});
+
+// ============================================================
+// AUTH APIs - DRIVER REGISTRATION
+// ============================================================
+app.post('/api/auth/register/driver', async (req, res) => {
+    const { fullName, email, phone, password, driverLicense, carModel, carPlate } = req.body;
+
+    if (!fullName || !email || !phone || !password || !driverLicense || !carModel || !carPlate) {
+        return res.status(400).json({ error: 'All fields required' });
+    }
+
+    if (password.length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    try {
+        const verificationCode = generateVerificationCode();
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const sql = `INSERT INTO users 
+            (full_name, email, phone, password, role, driver_license, car_model, car_plate, verification_code, verification_code_expires) 
+            VALUES (?, ?, ?, ?, 'driver', ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`;
+
+        db.query(sql, [fullName, email, phone, hashedPassword, driverLicense, carModel, carPlate, verificationCode], async (err, result) => {
+            if (err) {
+                if (err.code === 'ER_DUP_ENTRY') {
+                    return res.status(400).json({ error: 'Email, phone, or license already registered' });
+                }
+                console.error('Registration error:', err);
+                return res.status(500).json({ error: 'Registration failed' });
+            }
+
+            await sendVerificationEmail(email, fullName, verificationCode);
+
+            res.json({
+                success: true,
+                message: 'Driver registration successful! Check your email for verification code.',
+                userId: result.insertId
+            });
+        });
+
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Registration failed' });
+    }
+});
+
+// ============================================================
+// AUTH APIs - VERIFY EMAIL/PHONE
+// ============================================================
+app.post('/api/auth/verify', (req, res) => {
+    const { email, phone, code } = req.body;
+
+    if (!email && !phone) {
+        return res.status(400).json({ error: 'Email or phone required' });
+    }
+
+    if (!code || code.length !== 6) {
+        return res.status(400).json({ error: 'Please enter a valid 6-digit code' });
+    }
+
+    const sql = `SELECT * FROM users WHERE (email = ? OR phone = ?) 
+        AND verification_code = ? AND verification_code_expires > NOW()`;
+
+    db.query(sql, [email, phone, code], async (err, users) => {
+        if (err) {
+            console.error('Verification error:', err);
+            return res.status(500).json({ error: 'Verification failed' });
+        }
+
+        if (users.length === 0) {
+            return res.status(400).json({ error: 'Invalid or expired verification code' });
+        }
+
+        const user = users[0];
+        const updateSql = `UPDATE users SET is_verified = TRUE, verification_code = NULL, verification_code_expires = NULL WHERE id = ?`;
+        
+        db.query(updateSql, [user.id], (err2) => {
+            if (err2) {
+                console.error('Update error:', err2);
+                return res.status(500).json({ error: 'Verification failed' });
+            }
+
+            const token = generateToken(user);
+            res.json({
+                success: true,
+                message: 'Verification successful!',
+                token,
+                user: {
+                    id: user.id,
+                    fullName: user.full_name,
+                    email: user.email,
+                    phone: user.phone,
+                    role: user.role,
+                    isVerified: true,
+                    driverLicense: user.driver_license,
+                    carModel: user.car_model,
+                    carPlate: user.car_plate
+                }
+            });
+        });
+    });
+});
+
+// ============================================================
+// AUTH APIs - RESEND VERIFICATION CODE
+// ============================================================
+app.post('/api/auth/resend-code', async (req, res) => {
+    const { email, phone } = req.body;
+
+    if (!email && !phone) {
+        return res.status(400).json({ error: 'Email or phone required' });
+    }
+
+    const sql = `SELECT * FROM users WHERE email = ? OR phone = ?`;
+
+    db.query(sql, [email, phone], async (err, users) => {
+        if (err || users.length === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const user = users[0];
+        const newCode = generateVerificationCode();
+
+        const updateSql = `UPDATE users SET verification_code = ?, verification_code_expires = DATE_ADD(NOW(), INTERVAL 10 MINUTE) WHERE id = ?`;
+        
+        db.query(updateSql, [newCode, user.id], async (err2) => {
+            if (err2) {
+                return res.status(500).json({ error: 'Failed to resend code' });
+            }
+
+            await sendVerificationEmail(user.email, user.full_name, newCode);
+
+            res.json({
+                success: true,
+                message: 'New verification code sent to your email'
+            });
+        });
+    });
+});
+
+// ============================================================
+// AUTH APIs - LOGIN
+// ============================================================
+app.post('/api/auth/login', (req, res) => {
+    const { email, phone, password } = req.body;
+
+    if (!email && !phone) {
+        return res.status(400).json({ error: 'Email or phone required' });
+    }
+
+    if (!password) {
+        return res.status(400).json({ error: 'Password required' });
+    }
+
+    const sql = `SELECT * FROM users WHERE email = ? OR phone = ?`;
+
+    db.query(sql, [email, phone], async (err, users) => {
+        if (err || users.length === 0) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        const user = users[0];
+
+        if (!user.is_verified) {
+            return res.status(401).json({ error: 'Please verify your account first' });
+        }
+
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
+        const token = generateToken(user);
+        res.json({
+            success: true,
+            token,
+            user: {
+                id: user.id,
+                fullName: user.full_name,
+                email: user.email,
+                phone: user.phone,
+                role: user.role,
+                isVerified: user.is_verified,
+                driverLicense: user.driver_license,
+                carModel: user.car_model,
+                carPlate: user.car_plate,
+                rating: user.rating
+            }
+        });
+    });
+});
+
+// ============================================================
+// RIDE APIs - CUSTOMER REQUESTS A RIDE
+// ============================================================
+app.post('/api/request-ride', (req, res) => {
+    const { customerId, customerName, phone, pickup, destination, vehicleType } = req.body;
+
+    if (!customerId || !pickup || !destination) {
+        return res.status(400).json({ error: 'All fields required' });
+    }
+
+    // Check if customer has pending rides
+    const checkSql = `SELECT * FROM rides WHERE customer_id = ? AND status IN ('pending', 'confirmed', 'in_progress')`;
+
+    db.query(checkSql, [customerId], (err, pending) => {
+        if (err) {
+            console.error('Check pending error:', err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+
+        if (pending.length > 0) {
             return res.status(400).json({ error: 'You have a pending ride. Please complete it first.' });
         }
 
-        // Find available drivers near the customer (simplified)
-        const availableDrivers = await User.find({ 
-            role: 'driver', 
-            status: 'available',
-            isVerified: true
+        // Find available driver
+        const driverSql = `SELECT * FROM users WHERE role = 'driver' AND status = 'available' AND is_verified = TRUE LIMIT 1`;
+
+        db.query(driverSql, (err2, drivers) => {
+            if (err2 || drivers.length === 0) {
+                return res.status(404).json({ error: 'No drivers available. Please try again later.' });
+            }
+
+            const driver = drivers[0];
+            const estimatedTime = Math.floor(Math.random() * 10) + 5;
+
+            const rideSql = `INSERT INTO rides 
+                (customer_id, customer_name, customer_phone, pickup, destination, vehicle_type, 
+                 status, driver_name, driver_phone, driver_plate, driver_car, estimated_time) 
+                VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`;
+
+            db.query(rideSql, [
+                customerId, 
+                customerName || 'Customer', 
+                phone || '',
+                pickup, 
+                destination, 
+                vehicleType || 'Any',
+                driver.full_name, 
+                driver.phone, 
+                driver.car_plate, 
+                driver.car_model, 
+                estimatedTime
+            ], (err3, result) => {
+                if (err3) {
+                    console.error('Ride creation error:', err3);
+                    return res.status(500).json({ error: 'Failed to create ride' });
+                }
+
+                // Update driver status
+                db.query(`UPDATE users SET status = 'busy' WHERE id = ?`, [driver.id]);
+
+                res.json({
+                    success: true,
+                    message: `✅ Ride requested! ${driver.full_name} is on the way.`,
+                    rideId: result.insertId,
+                    driver: {
+                        name: driver.full_name,
+                        phone: driver.phone,
+                        plate: driver.car_plate,
+                        car: driver.car_model,
+                        rating: driver.rating
+                    },
+                    estimatedTime: estimatedTime
+                });
+            });
         });
-
-        if (availableDrivers.length === 0) {
-            return res.status(404).json({ error: 'No drivers available. Please try again later.' });
-        }
-
-        // Select random driver (in real app, would use location-based matching)
-        const selectedDriver = availableDrivers[Math.floor(Math.random() * availableDrivers.length)];
-
-        const ride = new Ride({
-            customerId,
-            customerName: req.body.customerName || 'Customer',
-            customerPhone: req.body.phone || '',
-            pickup,
-            destination,
-            vehicleType: vehicleType || 'Any',
-            status: 'pending',
-            estimatedTime: Math.floor(Math.random() * 10) + 5,
-            driverName: selectedDriver.fullName,
-            driverPhone: selectedDriver.phone,
-            driverPlate: selectedDriver.carPlate,
-            driverCar: selectedDriver.carModel
-        });
-
-        await ride.save();
-
-        res.json({
-            success: true,
-            message: `✅ Ride requested! ${selectedDriver.fullName} is on the way.`,
-            rideId: ride._id,
-            driver: {
-                name: selectedDriver.fullName,
-                phone: selectedDriver.phone,
-                plate: selectedDriver.carPlate,
-                car: selectedDriver.carModel,
-                rating: selectedDriver.rating
-            },
-            estimatedTime: ride.estimatedTime
-        });
-
-    } catch (error) {
-        console.error('Request ride error:', error);
-        res.status(500).json({ error: 'Failed to request ride' });
-    }
-});
-
-// Get ride status
-app.get('/api/ride-status/:id', async (req, res) => {
-    try {
-        const ride = await Ride.findById(req.params.id);
-        if (!ride) {
-            return res.status(404).json({ error: 'Ride not found' });
-        }
-        res.json(ride);
-    } catch (error) {
-        console.error('Ride status error:', error);
-        res.status(500).json({ error: 'Failed to get ride status' });
-    }
+    });
 });
 
 // ============================================================
-// DRIVER APIs
+// RIDE APIs - GET RIDE STATUS
 // ============================================================
-
-// Get pending rides for drivers
-app.get('/api/driver/requests', async (req, res) => {
-    try {
-        const pendingRides = await Ride.find({ status: 'pending' })
-            .sort({ createdAt: -1 })
-            .limit(20);
-        res.json(pendingRides);
-    } catch (error) {
-        console.error('Get pending rides error:', error);
-        res.status(500).json({ error: 'Failed to get pending rides' });
-    }
-});
-
-// Driver confirms a ride
-app.post('/api/driver/confirm-ride', async (req, res) => {
-    try {
-        const { rideId, driverId } = req.body;
-
-        const ride = await Ride.findById(rideId);
-        if (!ride) {
+app.get('/api/ride-status/:id', (req, res) => {
+    const sql = `SELECT * FROM rides WHERE id = ?`;
+    db.query(sql, [req.params.id], (err, rides) => {
+        if (err) {
+            return res.status(500).json({ error: 'Database error' });
+        }
+        if (rides.length === 0) {
             return res.status(404).json({ error: 'Ride not found' });
         }
+        res.json(rides[0]);
+    });
+});
 
-        if (ride.status !== 'pending') {
+// ============================================================
+// DRIVER APIs - GET PENDING RIDES
+// ============================================================
+app.get('/api/driver/requests', (req, res) => {
+    const sql = `SELECT * FROM rides WHERE status = 'pending' ORDER BY created_at DESC LIMIT 20`;
+    db.query(sql, (err, rides) => {
+        if (err) {
+            console.error('Get pending rides error:', err);
+            return res.status(500).json({ error: 'Database error' });
+        }
+        res.json(rides);
+    });
+});
+
+// ============================================================
+// DRIVER APIs - CONFIRM RIDE
+// ============================================================
+app.post('/api/driver/confirm-ride', (req, res) => {
+    const { rideId, driverId } = req.body;
+
+    if (!rideId || !driverId) {
+        return res.status(400).json({ error: 'Ride ID and Driver ID required' });
+    }
+
+    // Check if ride is still pending
+    const checkSql = `SELECT * FROM rides WHERE id = ? AND status = 'pending'`;
+    
+    db.query(checkSql, [rideId], (err, rides) => {
+        if (err) {
+            return res.status(500).json({ error: 'Database error' });
+        }
+        if (rides.length === 0) {
             return res.status(400).json({ error: 'Ride already confirmed or completed' });
         }
 
-        const driver = await User.findById(driverId);
-        if (!driver) {
-            return res.status(404).json({ error: 'Driver not found' });
+        const updateSql = `UPDATE rides SET status = 'confirmed', driver_id = ? WHERE id = ?`;
+        
+        db.query(updateSql, [driverId, rideId], (err2, result) => {
+            if (err2) {
+                return res.status(500).json({ error: 'Failed to confirm ride' });
+            }
+
+            if (result.affectedRows === 0) {
+                return res.status(400).json({ error: 'Ride already confirmed or completed' });
+            }
+
+            // Update driver status
+            db.query(`UPDATE users SET status = 'busy' WHERE id = ?`, [driverId]);
+
+            // Get ride details
+            db.query(`SELECT * FROM rides WHERE id = ?`, [rideId], (err3, rideResult) => {
+                const ride = rideResult[0];
+                res.json({
+                    success: true,
+                    message: '✅ Ride confirmed!',
+                    driver: {
+                        name: ride.driver_name,
+                        phone: ride.driver_phone,
+                        plate: ride.driver_plate,
+                        car: ride.driver_car
+                    }
+                });
+            });
+        });
+    });
+});
+
+// ============================================================
+// DRIVER APIs - COMPLETE RIDE
+// ============================================================
+app.post('/api/driver/complete-ride', (req, res) => {
+    const { rideId, driverId } = req.body;
+
+    if (!rideId || !driverId) {
+        return res.status(400).json({ error: 'Ride ID and Driver ID required' });
+    }
+
+    const updateSql = `UPDATE rides SET status = 'completed' WHERE id = ? AND driver_id = ? AND status = 'confirmed'`;
+    
+    db.query(updateSql, [rideId, driverId], (err, result) => {
+        if (err) {
+            console.error('Complete ride error:', err);
+            return res.status(500).json({ error: 'Failed to complete ride' });
         }
 
-        if (driver.status !== 'available') {
-            return res.status(400).json({ error: 'Driver is not available' });
+        if (result.affectedRows === 0) {
+            return res.status(400).json({ error: 'Ride not found or already completed' });
         }
 
-        ride.status = 'confirmed';
-        ride.driverId = driverId;
-        ride.driverName = driver.fullName;
-        ride.driverPhone = driver.phone;
-        ride.driverPlate = driver.carPlate;
-        ride.driverCar = driver.carModel;
-        await ride.save();
-
-        driver.status = 'busy';
-        await driver.save();
+        // Update driver status back to available
+        db.query(`UPDATE users SET status = 'available' WHERE id = ?`, [driverId]);
 
         res.json({
             success: true,
-            message: '✅ Ride confirmed!',
-            driver: {
-                name: driver.fullName,
-                phone: driver.phone,
-                plate: driver.carPlate,
-                car: driver.carModel,
-                rating: driver.rating
-            }
+            message: '✅ Ride completed!'
         });
+    });
+});
 
-    } catch (error) {
-        console.error('Confirm ride error:', error);
-        res.status(500).json({ error: 'Failed to confirm ride' });
-    }
+// ============================================================
+// DRIVER APIs - GET ALL DRIVERS
+// ============================================================
+app.get('/api/drivers', (req, res) => {
+    const sql = `SELECT id, full_name, phone, car_model, car_plate, status, rating FROM users WHERE role = 'driver'`;
+    db.query(sql, (err, drivers) => {
+        if (err) {
+            return res.status(500).json({ error: 'Database error' });
+        }
+        res.json(drivers);
+    });
+});
+
+// ============================================================
+// ADMIN APIs - GET ALL USERS
+// ============================================================
+app.get('/api/admin/users', (req, res) => {
+    const sql = `SELECT id, full_name, email, phone, role, is_verified, status, created_at FROM users`;
+    db.query(sql, (err, users) => {
+        if (err) {
+            return res.status(500).json({ error: 'Database error' });
+        }
+        res.json(users);
+    });
+});
+
+// ============================================================
+// ADMIN APIs - GET ALL RIDES
+// ============================================================
+app.get('/api/admin/rides', (req, res) => {
+    const sql = `SELECT * FROM rides ORDER BY created_at DESC`;
+    db.query(sql, (err, rides) => {
+        if (err) {
+            return res.status(500).json({ error: 'Database error' });
+        }
+        res.json(rides);
+    });
 });
 
 // ============================================================
@@ -517,7 +593,9 @@ app.post('/api/driver/confirm-ride', async (req, res) => {
 // ============================================================
 app.listen(PORT, () => {
     console.log(`👑 THE KING OF NORTHERN - Server running on port ${PORT}`);
-    console.log(`📊 Database: ${mongoose.connection.name}`);
+    console.log(`📊 Database: MySQL (king_of_northern)`);
     console.log(`📍 Service Area: Northern Kenya`);
-    console.log(`📱 Auth & Database System: Active`);
+    console.log(`🚘 Vehicle Types: Sedan, Hatchback, MPV, SUV, Station Wagon`);
+    console.log(`🔐 Auth System: Active (JWT + Email Verification)`);
+    console.log(`🌐 Visit: http://localhost:${PORT}`);
 });
