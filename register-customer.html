@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>👑 Register - Customer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 4px 30px rgba(0,0,0,0.3);
+        }
+        .logo { text-align: center; font-size: 3rem; margin-bottom: 10px; }
+        h1 { text-align: center; color: #1a1a2e; }
+        .subtitle { text-align: center; color: #7f8c8d; margin-bottom: 25px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: 600; margin-bottom: 5px; color: #2c3e50; }
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #ecf0f1;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        input:focus { border-color: #f39c12; outline: none; }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        .btn:hover { transform: translateY(-2px); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .message {
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+            text-align: center;
+        }
+        .message.success { background: #d4edda; color: #155724; display: block; }
+        .message.error { background: #f8d7da; color: #721c24; display: block; }
+        .link { text-align: center; margin-top: 15px; }
+        .link a { color: #f39c12; text-decoration: none; }
+        .link a:hover { text-decoration: underline; }
+        .verification-section {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px solid #f39c12;
+        }
+        .verification-section.active { display: block; }
+        .resend-btn {
+            background: transparent;
+            color: #f39c12;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .resend-btn:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">👑</div>
+        <h1>King of Northern</h1>
+        <p class="subtitle">🚗 Customer Registration</p>
+
+        <div id="message" class="message"></div>
+
+        <!-- Registration Form -->
+        <div id="register-section">
+            <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" id="fullName" placeholder="Enter your full name">
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="email" placeholder="Enter your email">
+            </div>
+            <div class="form-group">
+                <label>Phone Number</label>
+                <input type="tel" id="phone" placeholder="Enter your phone number">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password" placeholder="Create a password (min 6 characters)">
+            </div>
+            <button onclick="registerCustomer()" class="btn" id="registerBtn">🚗 Register as Customer</button>
+        </div>
+
+        <!-- Verification Section -->
+        <div class="verification-section" id="verification-section">
+            <h3 style="color: #2c3e50; text-align: center;">🔐 Verify Your Account</h3>
+            <p style="color: #7f8c8d; text-align: center; font-size: 0.9rem;">Enter the 6-digit code sent to your email and phone</p>
+            <div class="form-group" style="margin-top: 15px;">
+                <label>Verification Code</label>
+                <input type="text" id="verificationCode" placeholder="Enter 6-digit code" maxlength="6">
+            </div>
+            <button onclick="verifyAccount()" class="btn">✅ Verify Account</button>
+            <p style="text-align: center; margin-top: 10px; font-size: 0.9rem;">
+                Didn't receive code? 
+                <button onclick="resendCode()" class="resend-btn">Resend</button>
+            </p>
+        </div>
+
+        <div class="link">
+            <p>Already have an account? <a href="login.html">Login here</a></p>
+            <p style="margin-top: 5px;">Are you a driver? <a href="register-driver.html">Register as Driver</a></p>
+        </div>
+    </div>
+
+    <script>
+        let userId = null;
+
+        async function registerCustomer() {
+            const fullName = document.getElementById('fullName').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const password = document.getElementById('password').value.trim();
+
+            if (!fullName || !email || !phone || !password) {
+                showMessage('Please fill in all fields', 'error');
+                return;
+            }
+
+            if (password.length < 6) {
+                showMessage('Password must be at least 6 characters', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('registerBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Registering...';
+
+            try {
+                const res = await fetch('/api/auth/register/customer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fullName, email, phone, password })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    userId = result.userId;
+                    showMessage('✅ Registration successful! Check your email for verification code.', 'success');
+                    document.getElementById('verification-section').classList.add('active');
+                    document.getElementById('register-section').style.opacity = '0.5';
+                    document.getElementById('register-section').style.pointerEvents = 'none';
+                } else {
+                    showMessage('❌ ' + result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Error connecting to server', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🚗 Register as Customer';
+            }
+        }
+
+        async function verifyAccount() {
+            const code = document.getElementById('verificationCode').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+
+            if (!code || code.length !== 6) {
+                showMessage('Please enter the 6-digit verification code', 'error');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/auth/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, phone, code })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    showMessage('✅ Account verified! Redirecting...', 'success');
+                    localStorage.setItem('token', result.token);
+                    localStorage.setItem('user', JSON.stringify(result.user));
+                    setTimeout(() => {
+                        window.location.href = 'customer-dashboard.html';
+                    }, 2000);
+                } else {
+                    showMessage('❌ ' + result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Error verifying account', 'error');
+            }
+        }
+
+        async function resendCode() {
+            const email = document.getElementById('email').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+
+            try {
+                const res = await fetch('/api/auth/resend-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, phone })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    showMessage('✅ New verification code sent!', 'success');
+                } else {
+                    showMessage('❌ ' + result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('❌ Error resending code', 'error');
+            }
+        }
+
+        function showMessage(msg, type) {
+            const el = document.getElementById('message');
+            el.textContent = msg;
+            el.className = 'message ' + type;
+            el.style.display = 'block';
+            setTimeout(() => { el.style.display = 'none'; }, 5000);
+        }
+    </script>
+</body>
+</html>
