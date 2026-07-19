@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>👑 The King of Northern - Customer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <div class="header-content">
+            <div class="logo">
+                <img src="logo.png" alt="Logo" class="logo-img" onerror="this.style.display='none'">
+                <span class="crown">👑</span>
+                <h1>The King of Northern</h1>
+            </div>
+            <span class="tagline">🚗 Customer App</span>
+        </div>
+    </header>
+
+    <div class="container">
+
+        <section class="request-section">
+            <h2>🚗 Request a Ride</h2>
+            <p class="subtitle">Fill in your details and we'll connect you with a nearby driver</p>
+
+            <div class="form-group">
+                <input type="text" id="customer-name" placeholder="Your Name *">
+                <input type="tel" id="phone" placeholder="Phone Number *">
+                <input type="text" id="pickup" placeholder="Pickup Location *">
+                <input type="text" id="destination" placeholder="Destination *">
+                
+                <!-- Vehicle Type Selection -->
+                <div class="vehicle-selection">
+                    <label>🚘 Select Vehicle Type:</label>
+                    <select id="vehicle-type">
+                        <option value="">Any Vehicle</option>
+                        <option value="Sedan">🚗 Sedan</option>
+                        <option value="Hatchback">🚙 Hatchback</option>
+                        <option value="MPV">🚐 MPV (7 Seater)</option>
+                        <option value="SUV">🚙 SUV</option>
+                        <option value="Station Wagon">🚗 Station Wagon</option>
+                    </select>
+                </div>
+
+                <button onclick="requestRide()" class="btn-request">👑 Request King's Ride</button>
+            </div>
+
+            <div id="ride-status"></div>
+        </section>
+
+        <!-- Driver Info -->
+        <section class="driver-info" id="driver-info" style="display:none;">
+            <h2>🚗 Your Driver</h2>
+            <div class="driver-card">
+                <div class="driver-avatar">👨‍✈️</div>
+                <div class="driver-details">
+                    <h3 id="driver-name">-</h3>
+                    <p><strong>📞 Phone:</strong> <span id="driver-phone">-</span></p>
+                    <p><strong>🚗 Car:</strong> <span id="driver-car">-</span></p>
+                    <p><strong>🚘 Type:</strong> <span id="driver-type">-</span></p>
+                    <p><strong>👥 Capacity:</strong> <span id="driver-capacity">-</span></p>
+                    <p><strong>🔢 Plate:</strong> <span id="driver-plate">-</span></p>
+                    <p><strong>⭐ Rating:</strong> <span id="driver-rating">-</span></p>
+                    <p><strong>📍 Location:</strong> <span id="driver-location">-</span></p>
+                    <p><strong>⏱️ ETA:</strong> <span id="driver-eta">-</span> minutes</p>
+                    <p><strong>📏 Distance:</strong> <span id="driver-distance">-</span></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Nearby Drivers -->
+        <section class="nearby-drivers" id="nearby-drivers" style="display:none;">
+            <h2>📍 Nearby Drivers</h2>
+            <div id="nearby-drivers-list"></div>
+        </section>
+
+        <!-- Service Area -->
+        <section class="map-section">
+            <h2>📍 Service Area - Northern Kenya</h2>
+            <div class="map">
+                <div class="city-marker garissa">🏙️ Garissa</div>
+                <div class="city-marker wajir">🏙️ Wajir</div>
+                <div class="city-marker mandera">🏙️ Mandera</div>
+                <div class="city-marker lodwar">🏙️ Lodwar</div>
+                <div class="city-marker isiolo">🏙️ Isiolo</div>
+                <div class="city-marker marsabit">🏙️ Marsabit</div>
+                <div class="city-marker moyale">🏙️ Moyale</div>
+                <div class="city-marker turbi">🏙️ Turbi</div>
+                <div class="map-center">👑<br>THE KING<br>NORTHERN</div>
+            </div>
+        </section>
+
+    </div>
+
+    <footer>
+        <p>👑 The King of Northern © 2024 | Northern Kenya's Premier Ride</p>
+        <p style="font-size:0.8rem; opacity:0.7;">Safe • Reliable • Affordable</p>
+    </footer>
+
+    <script>
+        let statusInterval;
+
+        async function requestRide() {
+            const name = document.getElementById('customer-name').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            const pickup = document.getElementById('pickup').value.trim();
+            const destination = document.getElementById('destination').value.trim();
+            const vehicleType = document.getElementById('vehicle-type').value;
+
+            if (!name || !phone || !pickup || !destination) {
+                alert('⚠️ Please fill in all fields!');
+                return;
+            }
+
+            const btn = document.querySelector('.btn-request');
+            btn.disabled = true;
+            btn.textContent = '⏳ Finding nearby drivers...';
+
+            try {
+                const res = await fetch('/api/request-ride', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        customerName: name, 
+                        phone, 
+                        pickup, 
+                        destination,
+                        vehicleType: vehicleType
+                    })
+                });
+
+                const result = await res.json();
+
+                if (result.success) {
+                    // Show driver info
+                    document.getElementById('driver-info').style.display = 'block';
+                    document.getElementById('driver-name').textContent = result.driver.name;
+                    document.getElementById('driver-phone').textContent = result.driver.phone;
+                    document.getElementById('driver-car').textContent = result.driver.car;
+                    document.getElementById('driver-type').textContent = result.driver.type;
+                    document.getElementById('driver-capacity').textContent = result.driver.capacity;
+                    document.getElementById('driver-plate').textContent = result.driver.plate;
+                    document.getElementById('driver-rating').textContent = '⭐ ' + result.driver.rating;
+                    document.getElementById('driver-location').textContent = result.driver.location;
+                    document.getElementById('driver-eta').textContent = result.estimatedTime;
+                    document.getElementById('driver-distance').textContent = result.driver.distance;
+
+                    // Show nearby drivers
+                    if (result.nearbyDrivers && result.nearbyDrivers.length > 0) {
+                        document.getElementById('nearby-drivers').style.display = 'block';
+                        const list = document.getElementById('nearby-drivers-list');
+                        list.innerHTML = result.nearbyDrivers.map(d => `
+                            <div class="nearby-driver-card">
+                                <span class="driver-icon">🚗</span>
+                                <div>
+                                    <strong>${d.name}</strong>
+                                    <p>${d.car} (${d.type})</p>
+                                    <p>🔢 ${d.plate} | ⭐ ${d.rating}</p>
+                                    <p>📏 ${d.distance} away</p>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+
+                    document.getElementById('ride-status').innerHTML = `
+                        <div class="success-message">
+                            ✅ ${result.message}
+                            <p style="margin-top:5px;font-size:0.9rem;">Request ID: #${result.requestId}</p>
+                            <p style="font-size:0.9rem;">🚘 Vehicle: ${result.vehicleType}</p>
+                        </div>
+                    `;
+
+                    document.getElementById('customer-name').value = '';
+                    document.getElementById('phone').value = '';
+                    document.getElementById('pickup').value = '';
+                    document.getElementById('destination').value = '';
+
+                    checkStatusInterval(result.requestId);
+                } else {
+                    document.getElementById('ride-status').innerHTML = `
+                        <div class="error-message">❌ ${result.error}</div>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('ride-status').innerHTML = `
+                    <div class="error-message">❌ Error connecting to server</div>
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '👑 Request King\'s Ride';
+            }
+        }
+
+        function checkStatusInterval(requestId) {
+            if (statusInterval) clearInterval(statusInterval);
+            statusInterval = setInterval(async () => {
+                try {
+                    const res = await fetch(`/api/ride-status/${requestId}`);
+                    const status = await res.json();
+                    if (status.status === 'confirmed') {
+                        clearInterval(statusInterval);
+                        document.getElementById('ride-status').innerHTML = `
+                            <div class="success-message">
+                                ✅ Ride Confirmed! ${status.driver.name} is on the way.
+                                <p>🚗 ${status.driver.car} - ${status.driver.plate}</p>
+                            </div>
+                        `;
+                    }
+                    if (status.status === 'completed') {
+                        clearInterval(statusInterval);
+                        document.getElementById('ride-status').innerHTML = `
+                            <div class="success-message">✅ Ride Completed! Thank you for using The King of Northern.</div>
+                        `;
+                        document.getElementById('driver-info').style.display = 'none';
+                        document.getElementById('nearby-drivers').style.display = 'none';
+                    }
+                } catch (error) {}
+            }, 5000);
+        }
+    </script>
+
+</body>
+</html>
