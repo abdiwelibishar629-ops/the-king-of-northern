@@ -3,7 +3,6 @@ const cors = require('cors');
 const mysql = require('mysql2');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -17,7 +16,7 @@ app.use(express.static('.'));
 const db = mysql.createConnection({
     host: 'localhost',
     user: 'root',
-    password: '',  // XAMPP default is empty
+    password: '',
     database: 'king_of_northern'
 });
 
@@ -38,18 +37,14 @@ const JWT_SECRET = 'king-of-northern-super-secret-key-2024';
 // PWA SUPPORT
 // ============================================================
 app.get('/sw.js', (req, res) => {
-    res.setHeader('Content-Type', 'application/javascript');
-    res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(__dirname + '/sw.js');
 });
 
 app.get('/manifest.json', (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
     res.sendFile(__dirname + '/manifest.json');
 });
 
 app.get('/driver-manifest.json', (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
     res.sendFile(__dirname + '/driver-manifest.json');
 });
 
@@ -60,10 +55,6 @@ app.get('/', (req, res) => {
 // ============================================================
 // HELPER FUNCTIONS
 // ============================================================
-function generateVerificationCode() {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
 function generateToken(user) {
     return jwt.sign(
         { id: user.id, email: user.email, role: user.role },
@@ -88,7 +79,6 @@ app.post('/api/auth/login', (req, res) => {
         return res.status(400).json({ error: 'Password required' });
     }
 
-    // Search by email OR phone
     const sql = `SELECT * FROM users WHERE email = ? OR phone = ?`;
     
     db.query(sql, [email, phone], async (err, results) => {
@@ -104,14 +94,12 @@ app.post('/api/auth/login', (req, res) => {
         }
 
         const user = results[0];
-        console.log('👤 User found:', user.email, 'Role:', user.role, 'Verified:', user.is_verified);
+        console.log('👤 User found:', user.email);
 
-        // Check if account is verified
         if (!user.is_verified) {
             return res.status(401).json({ error: 'Please verify your account first' });
         }
 
-        // Check password
         const isMatch = await bcrypt.compare(password, user.password);
         console.log('🔑 Password match:', isMatch);
 
@@ -119,7 +107,6 @@ app.post('/api/auth/login', (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials - wrong password' });
         }
 
-        // Generate token
         const token = generateToken(user);
 
         res.json({
@@ -134,15 +121,14 @@ app.post('/api/auth/login', (req, res) => {
                 isVerified: user.is_verified,
                 driverLicense: user.driver_license,
                 carModel: user.car_model,
-                carPlate: user.car_plate,
-                rating: user.rating
+                carPlate: user.car_plate
             }
         });
     });
 });
 
 // ============================================================
-// AUTH APIs - CUSTOMER REGISTRATION
+// REGISTER APIs
 // ============================================================
 app.post('/api/auth/register/customer', async (req, res) => {
     const { fullName, email, phone, password } = req.body;
@@ -152,13 +138,12 @@ app.post('/api/auth/register/customer', async (req, res) => {
     }
 
     try {
-        const verificationCode = generateVerificationCode();
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const sql = `INSERT INTO users (full_name, email, phone, password, role, verification_code, verification_code_expires)
-                     VALUES (?, ?, ?, ?, 'customer', ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`;
+        const sql = `INSERT INTO users (full_name, email, phone, password, role, is_verified)
+                     VALUES (?, ?, ?, ?, 'customer', TRUE)`;
 
-        db.query(sql, [fullName, email, phone, hashedPassword, verificationCode], (err, result) => {
+        db.query(sql, [fullName, email, phone, hashedPassword], (err, result) => {
             if (err) {
                 if (err.code === 'ER_DUP_ENTRY') {
                     return res.status(400).json({ error: 'Email or phone already registered' });
@@ -169,19 +154,15 @@ app.post('/api/auth/register/customer', async (req, res) => {
 
             res.json({
                 success: true,
-                message: 'Registration successful! Check your email for verification code.',
+                message: 'Registration successful!',
                 userId: result.insertId
             });
         });
     } catch (error) {
-        console.error('Error:', error);
         res.status(500).json({ error: 'Registration failed' });
     }
 });
 
-// ============================================================
-// AUTH APIs - DRIVER REGISTRATION
-// ============================================================
 app.post('/api/auth/register/driver', async (req, res) => {
     const { fullName, email, phone, password, driverLicense, carModel, carPlate } = req.body;
 
@@ -190,13 +171,12 @@ app.post('/api/auth/register/driver', async (req, res) => {
     }
 
     try {
-        const verificationCode = generateVerificationCode();
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const sql = `INSERT INTO users (full_name, email, phone, password, role, driver_license, car_model, car_plate, verification_code, verification_code_expires, status)
-                     VALUES (?, ?, ?, ?, 'driver', ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE), 'available')`;
+        const sql = `INSERT INTO users (full_name, email, phone, password, role, driver_license, car_model, car_plate, is_verified, status)
+                     VALUES (?, ?, ?, ?, 'driver', ?, ?, ?, TRUE, 'available')`;
 
-        db.query(sql, [fullName, email, phone, hashedPassword, driverLicense, carModel, carPlate, verificationCode], (err, result) => {
+        db.query(sql, [fullName, email, phone, hashedPassword, driverLicense, carModel, carPlate], (err, result) => {
             if (err) {
                 if (err.code === 'ER_DUP_ENTRY') {
                     return res.status(400).json({ error: 'Email, phone, or license already registered' });
@@ -207,57 +187,13 @@ app.post('/api/auth/register/driver', async (req, res) => {
 
             res.json({
                 success: true,
-                message: 'Driver registration successful! Check your email for verification code.',
+                message: 'Driver registration successful!',
                 userId: result.insertId
             });
         });
     } catch (error) {
-        console.error('Error:', error);
         res.status(500).json({ error: 'Registration failed' });
     }
-});
-
-// ============================================================
-// AUTH APIs - VERIFY
-// ============================================================
-app.post('/api/auth/verify', (req, res) => {
-    const { email, phone, code } = req.body;
-
-    const sql = `SELECT * FROM users WHERE (email = ? OR phone = ?) 
-                 AND verification_code = ? AND verification_code_expires > NOW()`;
-
-    db.query(sql, [email, phone, code], (err, results) => {
-        if (err || results.length === 0) {
-            return res.status(400).json({ error: 'Invalid or expired verification code' });
-        }
-
-        const user = results[0];
-        const updateSql = `UPDATE users SET is_verified = TRUE, verification_code = NULL, verification_code_expires = NULL WHERE id = ?`;
-        
-        db.query(updateSql, [user.id], (err2) => {
-            if (err2) {
-                return res.status(500).json({ error: 'Verification failed' });
-            }
-
-            const token = generateToken(user);
-            res.json({
-                success: true,
-                message: 'Verification successful!',
-                token,
-                user: {
-                    id: user.id,
-                    fullName: user.full_name,
-                    email: user.email,
-                    phone: user.phone,
-                    role: user.role,
-                    isVerified: true,
-                    driverLicense: user.driver_license,
-                    carModel: user.car_model,
-                    carPlate: user.car_plate
-                }
-            });
-        });
-    });
 });
 
 // ============================================================
@@ -270,7 +206,6 @@ app.post('/api/request-ride', (req, res) => {
         return res.status(400).json({ error: 'All fields required' });
     }
 
-    // Check for pending rides
     const checkSql = `SELECT * FROM rides WHERE customer_id = ? AND status IN ('pending', 'confirmed', 'in_progress')`;
     
     db.query(checkSql, [customerId], (err, pending) => {
@@ -282,7 +217,6 @@ app.post('/api/request-ride', (req, res) => {
             return res.status(400).json({ error: 'You have a pending ride. Please complete it first.' });
         }
 
-        // Find available driver
         const driverSql = `SELECT * FROM users WHERE role = 'driver' AND status = 'available' AND is_verified = TRUE LIMIT 1`;
         
         db.query(driverSql, (err2, drivers) => {
@@ -315,7 +249,6 @@ app.post('/api/request-ride', (req, res) => {
                     return res.status(500).json({ error: 'Failed to create ride' });
                 }
 
-                // Update driver status
                 db.query(`UPDATE users SET status = 'busy' WHERE id = ?`, [driver.id]);
 
                 res.json({
@@ -428,7 +361,6 @@ app.listen(PORT, () => {
     console.log(`👑 THE KING OF NORTHERN - Server running on port ${PORT}`);
     console.log(`📊 Database: MySQL (phpMyAdmin)`);
     console.log(`📍 Service Area: Northern Kenya`);
-    console.log(`🚘 Vehicle Types: Sedan, Hatchback, MPV, SUV, Station Wagon`);
     console.log(`🔐 Auth System: Active (JWT + Email Verification)`);
     console.log(`🌐 Visit: http://localhost:${PORT}`);
     console.log(`👨‍✈️ Test Driver: driver@test.com / driver123`);
