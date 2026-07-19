@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const mysql = require('mysql2');
+const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
@@ -15,27 +15,88 @@ app.use(express.json());
 app.use(express.static('.'));
 
 // ============================================================
-// MYSQL DATABASE CONNECTION
+// MONGODB CONNECTION - ATLAS
 // ============================================================
-const db = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: '', // XAMPP default is empty
-    database: 'king_of_northern'
+const MONGODB_URI = 'mongodb+srv://abdiwelibishar629_db_user:t9VJ67LZ3je9BHx4@cluster0.rdb.mongodb.net/king-of-northern';
+
+mongoose.connect(MONGODB_URI)
+    .then(() => console.log('✅ MongoDB Connected Successfully'))
+    .catch(err => console.error('❌ MongoDB Connection Error:', err));
+
+// ============================================================
+// SCHEMAS
+// ============================================================
+const UserSchema = new mongoose.Schema({
+    fullName: { type: String, required: true },
+    email: { type: String, required: true, unique: true, lowercase: true },
+    phone: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    role: { type: String, enum: ['customer', 'driver', 'admin'], required: true },
+    driverLicense: { type: String, default: null },
+    carModel: { type: String, default: null },
+    carPlate: { type: String, default: null },
+    isVerified: { type: Boolean, default: false },
+    verificationCode: { type: String, default: null },
+    verificationCodeExpires: { type: Date, default: null },
+    rating: { type: Number, default: 0 },
+    totalRides: { type: Number, default: 0 },
+    status: { type: String, enum: ['available', 'busy', 'offline'], default: 'offline' },
+    location: { type: String, default: '' },
+    lat: { type: Number, default: 0 },
+    lng: { type: Number, default: 0 },
+    createdAt: { type: Date, default: Date.now }
 });
 
-db.connect((err) => {
-    if (err) {
-        console.error('❌ MySQL Connection Error:', err);
-        return;
-    }
-    console.log('✅ MySQL Connected Successfully');
+const RideSchema = new mongoose.Schema({
+    customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    driverId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    customerName: { type: String, required: true },
+    customerPhone: { type: String, required: true },
+    pickup: { type: String, required: true },
+    destination: { type: String, required: true },
+    pickupLat: { type: Number, default: 0 },
+    pickupLng: { type: Number, default: 0 },
+    destinationLat: { type: Number, default: 0 },
+    destinationLng: { type: Number, default: 0 },
+    vehicleType: { type: String, default: 'Any' },
+    status: { type: String, enum: ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled'], default: 'pending' },
+    driverName: { type: String, default: null },
+    driverPhone: { type: String, default: null },
+    driverPlate: { type: String, default: null },
+    driverCar: { type: String, default: null },
+    estimatedTime: { type: Number, default: 0 },
+    distance: { type: Number, default: 0 },
+    fare: { type: Number, default: 0 },
+    paymentMethod: { type: String, enum: ['cash', 'mpesa', 'card'], default: 'cash' },
+    paymentStatus: { type: String, enum: ['pending', 'paid', 'failed'], default: 'pending' },
+    startedAt: { type: Date, default: null },
+    completedAt: { type: Date, default: null },
+    createdAt: { type: Date, default: Date.now }
 });
+
+// ============================================================
+// PASSWORD HASHING MIDDLEWARE
+// ============================================================
+UserSchema.pre('save', async function(next) {
+    if (!this.isModified('password')) return next();
+    this.password = await bcrypt.hash(this.password, 10);
+    next();
+});
+
+UserSchema.methods.comparePassword = async function(password) {
+    return await bcrypt.compare(password, this.password);
+};
+
+// ============================================================
+// MODELS
+// ============================================================
+const User = mongoose.model('User', UserSchema);
+const Ride = mongoose.model('Ride', RideSchema);
 
 // ============================================================
 // JWT SECRET
 // ============================================================
-const JWT_SECRET = 'king-of-northern-secret-key-2024';
+const JWT_SECRET = process.env.JWT_SECRET || 'king-of-northern-secret-key-2024';
 
 // ============================================================
 // PWA SUPPORT
@@ -69,7 +130,7 @@ function generateVerificationCode() {
 
 function generateToken(user) {
     return jwt.sign(
-        { id: user.id, email: user.email, role: user.role },
+        { id: user._id, email: user.email, role: user.role },
         JWT_SECRET,
         { expiresIn: '7d' }
     );
@@ -133,33 +194,29 @@ app.post('/api/auth/register/customer', async (req, res) => {
 
     try {
         const verificationCode = generateVerificationCode();
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const sql = `INSERT INTO users 
-            (full_name, email, phone, password, role, verification_code, verification_code_expires) 
-            VALUES (?, ?, ?, ?, 'customer', ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`;
-
-        db.query(sql, [fullName, email, phone, hashedPassword, verificationCode], async (err, result) => {
-            if (err) {
-                if (err.code === 'ER_DUP_ENTRY') {
-                    return res.status(400).json({ error: 'Email or phone already registered' });
-                }
-                console.error('Registration error:', err);
-                return res.status(500).json({ error: 'Registration failed' });
-            }
-
-            // Send verification email
-            await sendVerificationEmail(email, fullName, verificationCode);
-
-            res.json({
-                success: true,
-                message: 'Registration successful! Check your email for verification code.',
-                userId: result.insertId
-            });
+        const user = new User({
+            fullName,
+            email: email.toLowerCase(),
+            phone,
+            password,
+            role: 'customer',
+            verificationCode,
+            verificationCodeExpires: new Date(Date.now() + 10 * 60000)
         });
 
+        await user.save();
+        await sendVerificationEmail(email, fullName, verificationCode);
+
+        res.json({
+            success: true,
+            message: 'Registration successful! Check your email for verification code.',
+            userId: user._id
+        });
     } catch (error) {
-        console.error('Error:', error);
+        if (error.code === 11000) {
+            return res.status(400).json({ error: 'Email or phone already registered' });
+        }
+        console.error('Registration error:', error);
         res.status(500).json({ error: 'Registration failed' });
     }
 });
@@ -180,32 +237,33 @@ app.post('/api/auth/register/driver', async (req, res) => {
 
     try {
         const verificationCode = generateVerificationCode();
-        const hashedPassword = await bcrypt.hash(password, 10);
-
-        const sql = `INSERT INTO users 
-            (full_name, email, phone, password, role, driver_license, car_model, car_plate, verification_code, verification_code_expires) 
-            VALUES (?, ?, ?, ?, 'driver', ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))`;
-
-        db.query(sql, [fullName, email, phone, hashedPassword, driverLicense, carModel, carPlate, verificationCode], async (err, result) => {
-            if (err) {
-                if (err.code === 'ER_DUP_ENTRY') {
-                    return res.status(400).json({ error: 'Email, phone, or license already registered' });
-                }
-                console.error('Registration error:', err);
-                return res.status(500).json({ error: 'Registration failed' });
-            }
-
-            await sendVerificationEmail(email, fullName, verificationCode);
-
-            res.json({
-                success: true,
-                message: 'Driver registration successful! Check your email for verification code.',
-                userId: result.insertId
-            });
+        const user = new User({
+            fullName,
+            email: email.toLowerCase(),
+            phone,
+            password,
+            role: 'driver',
+            driverLicense,
+            carModel,
+            carPlate,
+            verificationCode,
+            verificationCodeExpires: new Date(Date.now() + 10 * 60000),
+            status: 'available'
         });
 
+        await user.save();
+        await sendVerificationEmail(email, fullName, verificationCode);
+
+        res.json({
+            success: true,
+            message: 'Driver registration successful! Check your email for verification code.',
+            userId: user._id
+        });
     } catch (error) {
-        console.error('Error:', error);
+        if (error.code === 11000) {
+            return res.status(400).json({ error: 'Email, phone, or license already registered' });
+        }
+        console.error('Driver registration error:', error);
         res.status(500).json({ error: 'Registration failed' });
     }
 });
@@ -213,7 +271,7 @@ app.post('/api/auth/register/driver', async (req, res) => {
 // ============================================================
 // AUTH APIs - VERIFY EMAIL/PHONE
 // ============================================================
-app.post('/api/auth/verify', (req, res) => {
+app.post('/api/auth/verify', async (req, res) => {
     const { email, phone, code } = req.body;
 
     if (!email && !phone) {
@@ -224,47 +282,43 @@ app.post('/api/auth/verify', (req, res) => {
         return res.status(400).json({ error: 'Please enter a valid 6-digit code' });
     }
 
-    const sql = `SELECT * FROM users WHERE (email = ? OR phone = ?) 
-        AND verification_code = ? AND verification_code_expires > NOW()`;
+    try {
+        const user = await User.findOne({
+            $or: [{ email: email?.toLowerCase() }, { phone }],
+            verificationCode: code,
+            verificationCodeExpires: { $gt: new Date() }
+        });
 
-    db.query(sql, [email, phone, code], async (err, users) => {
-        if (err) {
-            console.error('Verification error:', err);
-            return res.status(500).json({ error: 'Verification failed' });
-        }
-
-        if (users.length === 0) {
+        if (!user) {
             return res.status(400).json({ error: 'Invalid or expired verification code' });
         }
 
-        const user = users[0];
-        const updateSql = `UPDATE users SET is_verified = TRUE, verification_code = NULL, verification_code_expires = NULL WHERE id = ?`;
-        
-        db.query(updateSql, [user.id], (err2) => {
-            if (err2) {
-                console.error('Update error:', err2);
-                return res.status(500).json({ error: 'Verification failed' });
-            }
+        user.isVerified = true;
+        user.verificationCode = null;
+        user.verificationCodeExpires = null;
+        await user.save();
 
-            const token = generateToken(user);
-            res.json({
-                success: true,
-                message: 'Verification successful!',
-                token,
-                user: {
-                    id: user.id,
-                    fullName: user.full_name,
-                    email: user.email,
-                    phone: user.phone,
-                    role: user.role,
-                    isVerified: true,
-                    driverLicense: user.driver_license,
-                    carModel: user.car_model,
-                    carPlate: user.car_plate
-                }
-            });
+        const token = generateToken(user);
+        res.json({
+            success: true,
+            message: 'Verification successful!',
+            token,
+            user: {
+                id: user._id,
+                fullName: user.fullName,
+                email: user.email,
+                phone: user.phone,
+                role: user.role,
+                isVerified: user.isVerified,
+                driverLicense: user.driverLicense,
+                carModel: user.carModel,
+                carPlate: user.carPlate
+            }
         });
-    });
+    } catch (error) {
+        console.error('Verification error:', error);
+        res.status(500).json({ error: 'Verification failed' });
+    }
 });
 
 // ============================================================
@@ -277,37 +331,33 @@ app.post('/api/auth/resend-code', async (req, res) => {
         return res.status(400).json({ error: 'Email or phone required' });
     }
 
-    const sql = `SELECT * FROM users WHERE email = ? OR phone = ?`;
-
-    db.query(sql, [email, phone], async (err, users) => {
-        if (err || users.length === 0) {
+    try {
+        const user = await User.findOne({ $or: [{ email: email?.toLowerCase() }, { phone }] });
+        if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        const user = users[0];
         const newCode = generateVerificationCode();
+        user.verificationCode = newCode;
+        user.verificationCodeExpires = new Date(Date.now() + 10 * 60000);
+        await user.save();
 
-        const updateSql = `UPDATE users SET verification_code = ?, verification_code_expires = DATE_ADD(NOW(), INTERVAL 10 MINUTE) WHERE id = ?`;
-        
-        db.query(updateSql, [newCode, user.id], async (err2) => {
-            if (err2) {
-                return res.status(500).json({ error: 'Failed to resend code' });
-            }
+        await sendVerificationEmail(user.email, user.fullName, newCode);
 
-            await sendVerificationEmail(user.email, user.full_name, newCode);
-
-            res.json({
-                success: true,
-                message: 'New verification code sent to your email'
-            });
+        res.json({
+            success: true,
+            message: 'New verification code sent to your email'
         });
-    });
+    } catch (error) {
+        console.error('Resend code error:', error);
+        res.status(500).json({ error: 'Failed to resend code' });
+    }
 });
 
 // ============================================================
 // AUTH APIs - LOGIN
 // ============================================================
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
     const { email, phone, password } = req.body;
 
     if (!email && !phone) {
@@ -318,20 +368,20 @@ app.post('/api/auth/login', (req, res) => {
         return res.status(400).json({ error: 'Password required' });
     }
 
-    const sql = `SELECT * FROM users WHERE email = ? OR phone = ?`;
+    try {
+        const user = await User.findOne({
+            $or: [{ email: email?.toLowerCase() }, { phone }]
+        });
 
-    db.query(sql, [email, phone], async (err, users) => {
-        if (err || users.length === 0) {
+        if (!user) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        const user = users[0];
-
-        if (!user.is_verified) {
+        if (!user.isVerified) {
             return res.status(401).json({ error: 'Please verify your account first' });
         }
 
-        const isMatch = await bcrypt.compare(password, user.password);
+        const isMatch = await user.comparePassword(password);
         if (!isMatch) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
@@ -341,251 +391,274 @@ app.post('/api/auth/login', (req, res) => {
             success: true,
             token,
             user: {
-                id: user.id,
-                fullName: user.full_name,
+                id: user._id,
+                fullName: user.fullName,
                 email: user.email,
                 phone: user.phone,
                 role: user.role,
-                isVerified: user.is_verified,
-                driverLicense: user.driver_license,
-                carModel: user.car_model,
-                carPlate: user.car_plate,
+                isVerified: user.isVerified,
+                driverLicense: user.driverLicense,
+                carModel: user.carModel,
+                carPlate: user.carPlate,
                 rating: user.rating
             }
         });
-    });
+    } catch (error) {
+        console.error('Login error:', error);
+        res.status(500).json({ error: 'Login failed' });
+    }
 });
 
 // ============================================================
 // RIDE APIs - CUSTOMER REQUESTS A RIDE
 // ============================================================
-app.post('/api/request-ride', (req, res) => {
+app.post('/api/request-ride', async (req, res) => {
     const { customerId, customerName, phone, pickup, destination, vehicleType } = req.body;
 
     if (!customerId || !pickup || !destination) {
         return res.status(400).json({ error: 'All fields required' });
     }
 
-    // Check if customer has pending rides
-    const checkSql = `SELECT * FROM rides WHERE customer_id = ? AND status IN ('pending', 'confirmed', 'in_progress')`;
+    try {
+        // Check if customer has pending rides
+        const pendingRide = await Ride.findOne({
+            customerId,
+            status: { $in: ['pending', 'confirmed', 'in_progress'] }
+        });
 
-    db.query(checkSql, [customerId], (err, pending) => {
-        if (err) {
-            console.error('Check pending error:', err);
-            return res.status(500).json({ error: 'Database error' });
-        }
-
-        if (pending.length > 0) {
+        if (pendingRide) {
             return res.status(400).json({ error: 'You have a pending ride. Please complete it first.' });
         }
 
         // Find available driver
-        const driverSql = `SELECT * FROM users WHERE role = 'driver' AND status = 'available' AND is_verified = TRUE LIMIT 1`;
-
-        db.query(driverSql, (err2, drivers) => {
-            if (err2 || drivers.length === 0) {
-                return res.status(404).json({ error: 'No drivers available. Please try again later.' });
-            }
-
-            const driver = drivers[0];
-            const estimatedTime = Math.floor(Math.random() * 10) + 5;
-
-            const rideSql = `INSERT INTO rides 
-                (customer_id, customer_name, customer_phone, pickup, destination, vehicle_type, 
-                 status, driver_name, driver_phone, driver_plate, driver_car, estimated_time) 
-                VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`;
-
-            db.query(rideSql, [
-                customerId, 
-                customerName || 'Customer', 
-                phone || '',
-                pickup, 
-                destination, 
-                vehicleType || 'Any',
-                driver.full_name, 
-                driver.phone, 
-                driver.car_plate, 
-                driver.car_model, 
-                estimatedTime
-            ], (err3, result) => {
-                if (err3) {
-                    console.error('Ride creation error:', err3);
-                    return res.status(500).json({ error: 'Failed to create ride' });
-                }
-
-                // Update driver status
-                db.query(`UPDATE users SET status = 'busy' WHERE id = ?`, [driver.id]);
-
-                res.json({
-                    success: true,
-                    message: `✅ Ride requested! ${driver.full_name} is on the way.`,
-                    rideId: result.insertId,
-                    driver: {
-                        name: driver.full_name,
-                        phone: driver.phone,
-                        plate: driver.car_plate,
-                        car: driver.car_model,
-                        rating: driver.rating
-                    },
-                    estimatedTime: estimatedTime
-                });
-            });
+        const driver = await User.findOne({
+            role: 'driver',
+            status: 'available',
+            isVerified: true
         });
-    });
+
+        if (!driver) {
+            return res.status(404).json({ error: 'No drivers available. Please try again later.' });
+        }
+
+        const estimatedTime = Math.floor(Math.random() * 10) + 5;
+
+        const ride = new Ride({
+            customerId,
+            customerName: customerName || 'Customer',
+            customerPhone: phone || '',
+            pickup,
+            destination,
+            vehicleType: vehicleType || 'Any',
+            status: 'pending',
+            driverName: driver.fullName,
+            driverPhone: driver.phone,
+            driverPlate: driver.carPlate,
+            driverCar: driver.carModel,
+            estimatedTime
+        });
+
+        await ride.save();
+
+        // Update driver status
+        driver.status = 'busy';
+        await driver.save();
+
+        res.json({
+            success: true,
+            message: `✅ Ride requested! ${driver.fullName} is on the way.`,
+            rideId: ride._id,
+            driver: {
+                name: driver.fullName,
+                phone: driver.phone,
+                plate: driver.carPlate,
+                car: driver.carModel,
+                rating: driver.rating
+            },
+            estimatedTime
+        });
+    } catch (error) {
+        console.error('Request ride error:', error);
+        res.status(500).json({ error: 'Failed to request ride' });
+    }
 });
 
 // ============================================================
 // RIDE APIs - GET RIDE STATUS
 // ============================================================
-app.get('/api/ride-status/:id', (req, res) => {
-    const sql = `SELECT * FROM rides WHERE id = ?`;
-    db.query(sql, [req.params.id], (err, rides) => {
-        if (err) {
-            return res.status(500).json({ error: 'Database error' });
-        }
-        if (rides.length === 0) {
+app.get('/api/ride-status/:id', async (req, res) => {
+    try {
+        const ride = await Ride.findById(req.params.id);
+        if (!ride) {
             return res.status(404).json({ error: 'Ride not found' });
         }
-        res.json(rides[0]);
-    });
+        res.json(ride);
+    } catch (error) {
+        console.error('Ride status error:', error);
+        res.status(500).json({ error: 'Failed to get ride status' });
+    }
 });
 
 // ============================================================
 // DRIVER APIs - GET PENDING RIDES
 // ============================================================
-app.get('/api/driver/requests', (req, res) => {
-    const sql = `SELECT * FROM rides WHERE status = 'pending' ORDER BY created_at DESC LIMIT 20`;
-    db.query(sql, (err, rides) => {
-        if (err) {
-            console.error('Get pending rides error:', err);
-            return res.status(500).json({ error: 'Database error' });
-        }
+app.get('/api/driver/requests', async (req, res) => {
+    try {
+        const rides = await Ride.find({ status: 'pending' })
+            .sort({ createdAt: -1 })
+            .limit(20);
         res.json(rides);
-    });
+    } catch (error) {
+        console.error('Get pending rides error:', error);
+        res.status(500).json({ error: 'Failed to get pending rides' });
+    }
 });
 
 // ============================================================
 // DRIVER APIs - CONFIRM RIDE
 // ============================================================
-app.post('/api/driver/confirm-ride', (req, res) => {
+app.post('/api/driver/confirm-ride', async (req, res) => {
     const { rideId, driverId } = req.body;
 
     if (!rideId || !driverId) {
         return res.status(400).json({ error: 'Ride ID and Driver ID required' });
     }
 
-    // Check if ride is still pending
-    const checkSql = `SELECT * FROM rides WHERE id = ? AND status = 'pending'`;
-    
-    db.query(checkSql, [rideId], (err, rides) => {
-        if (err) {
-            return res.status(500).json({ error: 'Database error' });
-        }
-        if (rides.length === 0) {
+    try {
+        const ride = await Ride.findById(rideId);
+        if (!ride || ride.status !== 'pending') {
             return res.status(400).json({ error: 'Ride already confirmed or completed' });
         }
 
-        const updateSql = `UPDATE rides SET status = 'confirmed', driver_id = ? WHERE id = ?`;
-        
-        db.query(updateSql, [driverId, rideId], (err2, result) => {
-            if (err2) {
-                return res.status(500).json({ error: 'Failed to confirm ride' });
+        const driver = await User.findById(driverId);
+        if (!driver || driver.status !== 'available') {
+            return res.status(400).json({ error: 'Driver not available' });
+        }
+
+        ride.status = 'confirmed';
+        ride.driverId = driverId;
+        await ride.save();
+
+        driver.status = 'busy';
+        await driver.save();
+
+        res.json({
+            success: true,
+            message: '✅ Ride confirmed!',
+            driver: {
+                name: driver.fullName,
+                phone: driver.phone,
+                plate: driver.carPlate,
+                car: driver.carModel
             }
-
-            if (result.affectedRows === 0) {
-                return res.status(400).json({ error: 'Ride already confirmed or completed' });
-            }
-
-            // Update driver status
-            db.query(`UPDATE users SET status = 'busy' WHERE id = ?`, [driverId]);
-
-            // Get ride details
-            db.query(`SELECT * FROM rides WHERE id = ?`, [rideId], (err3, rideResult) => {
-                const ride = rideResult[0];
-                res.json({
-                    success: true,
-                    message: '✅ Ride confirmed!',
-                    driver: {
-                        name: ride.driver_name,
-                        phone: ride.driver_phone,
-                        plate: ride.driver_plate,
-                        car: ride.driver_car
-                    }
-                });
-            });
         });
-    });
+    } catch (error) {
+        console.error('Confirm ride error:', error);
+        res.status(500).json({ error: 'Failed to confirm ride' });
+    }
 });
 
 // ============================================================
 // DRIVER APIs - COMPLETE RIDE
 // ============================================================
-app.post('/api/driver/complete-ride', (req, res) => {
+app.post('/api/driver/complete-ride', async (req, res) => {
     const { rideId, driverId } = req.body;
 
     if (!rideId || !driverId) {
         return res.status(400).json({ error: 'Ride ID and Driver ID required' });
     }
 
-    const updateSql = `UPDATE rides SET status = 'completed' WHERE id = ? AND driver_id = ? AND status = 'confirmed'`;
-    
-    db.query(updateSql, [rideId, driverId], (err, result) => {
-        if (err) {
-            console.error('Complete ride error:', err);
-            return res.status(500).json({ error: 'Failed to complete ride' });
-        }
-
-        if (result.affectedRows === 0) {
+    try {
+        const ride = await Ride.findById(rideId);
+        if (!ride || ride.status !== 'confirmed') {
             return res.status(400).json({ error: 'Ride not found or already completed' });
         }
 
-        // Update driver status back to available
-        db.query(`UPDATE users SET status = 'available' WHERE id = ?`, [driverId]);
+        ride.status = 'completed';
+        ride.completedAt = new Date();
+        await ride.save();
+
+        await User.findByIdAndUpdate(driverId, { status: 'available' });
 
         res.json({
             success: true,
             message: '✅ Ride completed!'
         });
-    });
+    } catch (error) {
+        console.error('Complete ride error:', error);
+        res.status(500).json({ error: 'Failed to complete ride' });
+    }
 });
 
 // ============================================================
 // DRIVER APIs - GET ALL DRIVERS
 // ============================================================
-app.get('/api/drivers', (req, res) => {
-    const sql = `SELECT id, full_name, phone, car_model, car_plate, status, rating FROM users WHERE role = 'driver'`;
-    db.query(sql, (err, drivers) => {
-        if (err) {
-            return res.status(500).json({ error: 'Database error' });
-        }
+app.get('/api/drivers', async (req, res) => {
+    try {
+        const drivers = await User.find(
+            { role: 'driver' },
+            'fullName phone carModel carPlate status rating'
+        );
         res.json(drivers);
-    });
+    } catch (error) {
+        console.error('Get drivers error:', error);
+        res.status(500).json({ error: 'Failed to get drivers' });
+    }
 });
 
 // ============================================================
 // ADMIN APIs - GET ALL USERS
 // ============================================================
-app.get('/api/admin/users', (req, res) => {
-    const sql = `SELECT id, full_name, email, phone, role, is_verified, status, created_at FROM users`;
-    db.query(sql, (err, users) => {
-        if (err) {
-            return res.status(500).json({ error: 'Database error' });
-        }
+app.get('/api/admin/users', async (req, res) => {
+    try {
+        const users = await User.find({}, 'fullName email phone role isVerified status createdAt');
         res.json(users);
-    });
+    } catch (error) {
+        console.error('Get users error:', error);
+        res.status(500).json({ error: 'Failed to get users' });
+    }
 });
 
 // ============================================================
 // ADMIN APIs - GET ALL RIDES
 // ============================================================
-app.get('/api/admin/rides', (req, res) => {
-    const sql = `SELECT * FROM rides ORDER BY created_at DESC`;
-    db.query(sql, (err, rides) => {
-        if (err) {
-            return res.status(500).json({ error: 'Database error' });
-        }
+app.get('/api/admin/rides', async (req, res) => {
+    try {
+        const rides = await Ride.find({})
+            .sort({ createdAt: -1 })
+            .populate('customerId', 'fullName phone')
+            .populate('driverId', 'fullName phone');
         res.json(rides);
-    });
+    } catch (error) {
+        console.error('Get rides error:', error);
+        res.status(500).json({ error: 'Failed to get rides' });
+    }
+});
+
+// ============================================================
+// ADMIN APIs - GET STATS
+// ============================================================
+app.get('/api/admin/stats', async (req, res) => {
+    try {
+        const totalUsers = await User.countDocuments();
+        const totalDrivers = await User.countDocuments({ role: 'driver' });
+        const totalCustomers = await User.countDocuments({ role: 'customer' });
+        const totalRides = await Ride.countDocuments();
+        const pendingRides = await Ride.countDocuments({ status: 'pending' });
+        const completedRides = await Ride.countDocuments({ status: 'completed' });
+        
+        res.json({
+            totalUsers,
+            totalDrivers,
+            totalCustomers,
+            totalRides,
+            pendingRides,
+            completedRides
+        });
+    } catch (error) {
+        console.error('Get stats error:', error);
+        res.status(500).json({ error: 'Failed to get stats' });
+    }
 });
 
 // ============================================================
@@ -593,7 +666,7 @@ app.get('/api/admin/rides', (req, res) => {
 // ============================================================
 app.listen(PORT, () => {
     console.log(`👑 THE KING OF NORTHERN - Server running on port ${PORT}`);
-    console.log(`📊 Database: MySQL (king_of_northern)`);
+    console.log(`📊 Database: MongoDB Atlas (king-of-northern)`);
     console.log(`📍 Service Area: Northern Kenya`);
     console.log(`🚘 Vehicle Types: Sedan, Hatchback, MPV, SUV, Station Wagon`);
     console.log(`🔐 Auth System: Active (JWT + Email Verification)`);
