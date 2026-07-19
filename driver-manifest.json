@@ -1,0 +1,24 @@
+{
+    "name": "King of Northern Driver",
+    "short_name": "King Driver",
+    "description": "Northern Kenya's Premier Ride Hailing Service - Driver",
+    "start_url": "driver.html",
+    "display": "standalone",
+    "background_color": "#1a1a2e",
+    "theme_color": "#2980b9",
+    "orientation": "portrait",
+    "icons": [
+        {
+            "src": "driver-icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "driver-icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}
