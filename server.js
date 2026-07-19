@@ -25,7 +25,6 @@ app.get('/manifest.json', (req, res) => {
 // VEHICLES & DRIVERS DATA
 // ============================================================
 const drivers = [
-    // Northern Kenya Drivers with Different Vehicles
     { 
         id: 1, 
         name: 'Ahmed Hassan', 
@@ -184,6 +183,20 @@ let sessions = {};
 let activeRides = [];
 
 // ============================================================
+// HELPER FUNCTION - Calculate distance between two coordinates (in km)
+// ============================================================
+function getDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+}
+
+// ============================================================
 // CUSTOMER APIs
 // ============================================================
 
@@ -195,20 +208,14 @@ app.post('/api/request-ride', (req, res) => {
         return res.status(400).json({ error: 'All fields required' });
     }
 
-    // Get customer location (for demo, we'll use Garissa as default)
     const customerLat = -0.4167;
     const customerLng = 39.6333;
 
-    // Find nearby available drivers (within 50km radius)
     const nearbyDrivers = drivers.filter(d => {
         if (d.status !== 'available') return false;
-        
-        // If vehicle type is specified, filter by type
         if (vehicleType && d.type !== vehicleType) return false;
-        
-        // Calculate distance (simplified for demo)
         const distance = getDistance(customerLat, customerLng, d.lat, d.lng);
-        return distance <= 50; // Within 50km
+        return distance <= 50;
     });
 
     if (nearbyDrivers.length === 0) {
@@ -218,17 +225,15 @@ app.post('/api/request-ride', (req, res) => {
         });
     }
 
-    // Sort by distance (closest first)
     nearbyDrivers.sort((a, b) => {
         const distA = getDistance(customerLat, customerLng, a.lat, a.lng);
         const distB = getDistance(customerLat, customerLng, b.lat, b.lng);
         return distA - distB;
     });
 
-    // Select the closest driver
     const selectedDriver = nearbyDrivers[0];
     const distance = getDistance(customerLat, customerLng, selectedDriver.lat, selectedDriver.lng);
-    const estimatedTime = Math.round(distance / 30 * 60) + 5; // Rough estimate in minutes
+    const estimatedTime = Math.round(distance / 30 * 60) + 5;
 
     const request = {
         id: requestId++,
@@ -277,18 +282,6 @@ app.post('/api/request-ride', (req, res) => {
         vehicleType: request.vehicleType
     });
 });
-
-// Helper: Calculate distance between two coordinates (in km)
-function getDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; // Earth's radius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-}
 
 // Customer checks ride status
 app.get('/api/ride-status/:id', (req, res) => {
