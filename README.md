@@ -2,7 +2,7 @@
 
 ## 🚗 Northern Kenya's Premier Ride Hailing Service
 
-A complete ride-hailing platform connecting customers with nearby drivers across Northern Kenya. Built with Node.js, Express, and PWA technology for mobile-first experience.
+A complete ride-hailing platform connecting customers with nearby drivers across Northern Kenya.
 
 ---
 
@@ -27,12 +27,7 @@ A complete ride-hailing platform connecting customers with nearby drivers across
 
 ### Customer Features:
 - ✅ Request a ride with pickup and destination
-- ✅ Select from multiple vehicle types:
-  - 🚗 Sedan (4-5 passengers)
-  - 🚙 Hatchback (4-5 passengers)
-  - 🚐 MPV (7 passengers)
-  - 🚙 SUV (5-7 passengers)
-  - 🚗 Station Wagon (5 passengers)
+- ✅ Select from multiple vehicle types
 - ✅ View nearby available drivers
 - ✅ See driver details (name, phone, car, plate, rating)
 - ✅ Real-time ride status updates
@@ -44,21 +39,6 @@ A complete ride-hailing platform connecting customers with nearby drivers across
 - ✅ Accept/confirm rides
 - ✅ Complete rides
 - ✅ Track ride history
-- ✅ Stats dashboard
-
----
-
-## 🏙️ **Service Area - Northern Kenya**
-
-The app serves these locations:
-- 🇰🇪 Garissa
-- 🇰🇪 Wajir
-- 🇰🇪 Mandera
-- 🇰🇪 Lodwar
-- 🇰🇪 Isiolo
-- 🇰🇪 Marsabit
-- 🇰🇪 Moyale
-- 🇰🇪 Turbi
 
 ---
 
@@ -83,4 +63,80 @@ The app serves these locations:
 
 ---
 
-## 📂 **Project Structure**
+## 🚀 **Deployment**
+
+### Deploy on Render:
+
+1. Push code to GitHub
+2. Go to [Render](https://dashboard.render.com)
+3. Click **"New +"** → **"Web Service"**
+4. Connect GitHub repository
+5. Fill in:
+   - **Build Command:** `npm install`
+   - **Start Command:** `node server.js`
+6. Click **"Create Web Service"**
+
+---
+
+## 📱 **Install on Phone**
+
+### Android (Chrome):
+1. Open Chrome
+2. Go to Customer or Driver app URL
+3. Tap **three dots (⋮)** → **"Add to Home screen"**
+4. Tap **"Install"**
+
+### iPhone (Safari):
+1. Open Safari
+2. Go to Customer or Driver app URL
+3. Tap **Share** → **"Add to Home Screen"**
+4. Tap **"Add"**
+
+---
+
+## 🎨 **Logos**
+
+| App | Logo File |
+|-----|-----------|
+| Customer App | `customer-logo.png.jpeg` |
+| Driver App | `driver-logo.png.jpeg` |
+
+---
+
+## 📊 **API Endpoints**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/request-ride` | Customer requests a ride |
+| GET | `/api/ride-status/:id` | Check ride status |
+| POST | `/api/driver-login` | Driver login |
+| GET | `/api/driver/requests` | Get pending requests |
+| POST | `/api/driver/confirm-ride` | Driver confirms ride |
+| POST | `/api/driver/complete-ride` | Driver completes ride |
+
+---
+
+## 👥 **Drivers Available**
+
+| Name | Car | Plate | Location | Rating |
+|------|-----|-------|----------|--------|
+| Ahmed Hassan | Toyota Probox | KCA 123A | Garissa | ⭐ 4.8 |
+| Fatuma Ali | Nissan Note | KDA 456B | Wajir | ⭐ 4.9 |
+| Omar Abdi | Toyota Sienta | KEA 789C | Mandera | ⭐ 4.7 |
+| Halima Ibrahim | Honda Fit | KFA 012D | Lodwar | ⭐ 4.6 |
+| Abdirahman Said | Toyota Probox | KGA 345E | Isiolo | ⭐ 4.9 |
+| Muna Adan | Toyota Vitz | KHA 678F | Marsabit | ⭐ 4.8 |
+| Hassan Noor | Nissan Wingroad | KJA 901G | Moyale | ⭐ 4.7 |
+| Amina Osman | Toyota Premio | KLA 234H | Turbi | ⭐ 4.9 |
+| Mohamed Duale | Toyota RAV4 | KMA 567J | Garissa | ⭐ 4.8 |
+| Asha Abdi | Land Cruiser | KNA 890K | Mandera | ⭐ 4.9 |
+
+---
+
+## 📝 **License**
+
+© 2024 The King of Northern. All rights reserved.
+
+---
+
+**👑 The King of Northern - Safe • Reliable • Affordable**
