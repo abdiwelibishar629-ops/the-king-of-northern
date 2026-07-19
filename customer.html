@@ -3,27 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>👑 The King of Northern - Customer</title>
+    <title>👑 King of Northern - Customer</title>
     
     <!-- PWA Support -->
     <link rel="manifest" href="/manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="King Northern">
+    <meta name="apple-mobile-web-app-title" content="King of Northern Customer">
     <meta name="mobile-web-app-capable" content="yes">
     
     <link rel="stylesheet" href="style.css">
+    <style>
+        /* Download Button Styles */
+        .download-section {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border-radius: 15px;
+            padding: 25px 20px;
+            margin-top: 30px;
+            text-align: center;
+            border: 2px solid #f39c12;
+        }
+        .download-section h3 {
+            color: #f1c40f;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+        }
+        .download-section p {
+            color: #bdc3c7;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+        .download-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+            padding: 14px 40px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 1.1rem;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+        .download-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(243, 156, 18, 0.4);
+        }
+        .download-btn .icon {
+            margin-right: 10px;
+        }
+        .app-name-footer {
+            color: #f1c40f;
+            font-weight: 600;
+            font-size: 1rem;
+            margin-top: 10px;
+        }
+        .app-version {
+            color: #7f8c8d;
+            font-size: 0.7rem;
+            margin-top: 5px;
+        }
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+        .logo-container .logo-img {
+            height: 60px;
+            width: auto;
+            border-radius: 12px;
+            background: white;
+            padding: 5px;
+        }
+        .logo-container .app-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #f1c40f, #f39c12);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .logo-container .app-subtitle {
+            font-size: 0.8rem;
+            color: #bdc3c7;
+            -webkit-text-fill-color: #bdc3c7;
+        }
+        @media (max-width: 480px) {
+            .logo-container {
+                flex-direction: column;
+                text-align: center;
+            }
+            .logo-container .logo-img {
+                height: 50px;
+            }
+            .download-btn {
+                padding: 12px 30px;
+                font-size: 1rem;
+                width: 100%;
+            }
+        }
+    </style>
 </head>
 <body>
 
     <header>
         <div class="header-content">
-            <div class="logo">
+            <div class="logo-container">
                 <img src="logo.png" alt="Logo" class="logo-img" onerror="this.style.display='none'">
-                <span class="crown">👑</span>
-                <h1>The King of Northern</h1>
+                <div>
+                    <span class="app-title">King of Northern</span>
+                    <span class="app-subtitle">🚗 Customer</span>
+                </div>
             </div>
-            <span class="tagline">🚗 Customer App</span>
+            <span class="tagline">🚗 Request a Ride</span>
         </div>
     </header>
 
@@ -100,10 +194,21 @@
             </div>
         </section>
 
+        <!-- ===== DOWNLOAD SECTION ===== -->
+        <section class="download-section">
+            <h3>📱 Download Customer App</h3>
+            <p>Install the King of Northern Customer app on your phone for faster ride requests!</p>
+            <button onclick="downloadApp()" class="download-btn">
+                <span class="icon">📲</span> Download App
+            </button>
+            <div class="app-name-footer">👑 King of Northern - Customer</div>
+            <div class="app-version">Version 1.0 | Northern Kenya's Premier Ride</div>
+        </section>
+
     </div>
 
     <footer>
-        <p>👑 The King of Northern © 2024 | Northern Kenya's Premier Ride</p>
+        <p>👑 King of Northern © 2024 | Northern Kenya's Premier Ride</p>
         <p style="font-size:0.8rem; opacity:0.7;">Safe • Reliable • Affordable</p>
     </footer>
 
@@ -114,6 +219,45 @@
                 .then(() => console.log('Service Worker registered'))
                 .catch(() => console.log('Service Worker registration failed'));
         }
+
+        // ============================================================
+        // DOWNLOAD APP FUNCTION
+        // ============================================================
+        function downloadApp() {
+            // Check if the app is already installed (PWA)
+            if (window.matchMedia('(display-mode: standalone)').matches) {
+                alert('✅ App is already installed on your device!');
+                return;
+            }
+
+            // For Android - prompt PWA installation
+            if (navigator.userAgent.toLowerCase().indexOf('android') > -1) {
+                // Show installation instructions
+                alert('📱 To install the app:\n\n1. Tap the three dots (⋮) in the top right\n2. Select "Add to Home screen"\n3. Tap "Install"\n\nThe app will appear on your home screen!');
+                return;
+            }
+
+            // For iOS - prompt PWA installation
+            if (navigator.userAgent.toLowerCase().indexOf('iphone') > -1 || navigator.userAgent.toLowerCase().indexOf('ipad') > -1) {
+                alert('📱 To install the app:\n\n1. Tap the Share icon (square with arrow)\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add"\n\nThe app will appear on your home screen!');
+                return;
+            }
+
+            // For desktop - show a message
+            alert('📱 Please open this page on your mobile device to install the app.\n\nOr click "Add to Home Screen" in your browser menu.');
+        }
+
+        // Show install prompt on mobile
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+        });
+
+        // Detect if app is already installed
+        window.addEventListener('appinstalled', () => {
+            console.log('App installed successfully!');
+        });
     </script>
 
     <script>
@@ -151,7 +295,6 @@
                 const result = await res.json();
 
                 if (result.success) {
-                    // Show driver info
                     document.getElementById('driver-info').style.display = 'block';
                     document.getElementById('driver-name').textContent = result.driver.name;
                     document.getElementById('driver-phone').textContent = result.driver.phone;
@@ -164,7 +307,6 @@
                     document.getElementById('driver-eta').textContent = result.estimatedTime;
                     document.getElementById('driver-distance').textContent = result.driver.distance;
 
-                    // Show nearby drivers
                     if (result.nearbyDrivers && result.nearbyDrivers.length > 0) {
                         document.getElementById('nearby-drivers').style.display = 'block';
                         const list = document.getElementById('nearby-drivers-list');
@@ -228,7 +370,7 @@
                     if (status.status === 'completed') {
                         clearInterval(statusInterval);
                         document.getElementById('ride-status').innerHTML = `
-                            <div class="success-message">✅ Ride Completed! Thank you for using The King of Northern.</div>
+                            <div class="success-message">✅ Ride Completed! Thank you for using King of Northern.</div>
                         `;
                         document.getElementById('driver-info').style.display = 'none';
                         document.getElementById('nearby-drivers').style.display = 'none';
