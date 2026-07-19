@@ -8,6 +8,20 @@ app.use(express.json());
 app.use(express.static('.'));
 
 // ============================================================
+// PWA SUPPORT - Serve Service Worker with proper headers
+// ============================================================
+app.get('/sw.js', (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.sendFile(__dirname + '/sw.js');
+});
+
+app.get('/manifest.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.sendFile(__dirname + '/manifest.json');
+});
+
+// ============================================================
 // VEHICLES & DRIVERS DATA
 // ============================================================
 const drivers = [
@@ -415,4 +429,5 @@ app.listen(PORT, () => {
     console.log(`🚗 Drivers Available: ${drivers.filter(d => d.status === 'available').length}`);
     console.log(`📍 Service Area: Northern Kenya`);
     console.log(`🚘 Vehicle Types: Sedan, Hatchback, MPV, SUV, Station Wagon`);
+    console.log(`📱 PWA Support: Enabled`);
 });
