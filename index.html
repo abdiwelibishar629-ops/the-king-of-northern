@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>👑 The King of Northern</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+        }
+        .container {
+            text-align: center;
+            padding: 40px 20px;
+            max-width: 600px;
+        }
+        .logo {
+            font-size: 5rem;
+            margin-bottom: 10px;
+        }
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(to right, #f1c40f, #f39c12);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            font-size: 1.2rem;
+            color: #f1c40f;
+            margin-bottom: 30px;
+        }
+        .tagline {
+            color: #bdc3c7;
+            font-size: 1rem;
+            margin-bottom: 40px;
+        }
+        .app-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 30px;
+        }
+        .app-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 30px 20px;
+            text-decoration: none;
+            color: white;
+            transition: transform 0.3s, background 0.3s;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .app-card:hover {
+            transform: translateY(-5px);
+            background: rgba(255,255,255,0.2);
+        }
+        .app-card .icon {
+            font-size: 3rem;
+            display: block;
+            margin-bottom: 10px;
+        }
+        .app-card .app-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+        .app-card .app-desc {
+            font-size: 0.8rem;
+            color: #bdc3c7;
+            margin-top: 5px;
+        }
+        .footer {
+            margin-top: 40px;
+            color: #7f8c8d;
+            font-size: 0.8rem;
+        }
+        .driver-login-link {
+            display: inline-block;
+            margin-top: 15px;
+            color: #f1c40f;
+            text-decoration: none;
+            border: 1px solid #f1c40f;
+            padding: 8px 20px;
+            border-radius: 25px;
+            transition: all 0.3s;
+        }
+        .driver-login-link:hover {
+            background: #f1c40f;
+            color: #1a1a2e;
+        }
+        @media (max-width: 480px) {
+            .app-grid {
+                grid-template-columns: 1fr;
+            }
+            h1 {
+                font-size: 1.8rem;
+            }
+            .logo {
+                font-size: 4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">👑</div>
+        <h1>The King of Northern</h1>
+        <p class="subtitle">🚗 Northern Kenya's Premier Ride Hailing Service</p>
+        <p class="tagline">Safe • Reliable • Affordable</p>
+
+        <div class="app-grid">
+            <a href="customer.html" class="app-card">
+                <span class="icon">🚗</span>
+                <span class="app-name">Customer App</span>
+                <span class="app-desc">Request a ride</span>
+            </a>
+            <a href="driver.html" class="app-card">
+                <span class="icon">👨‍✈️</span>
+                <span class="app-name">Driver App</span>
+                <span class="app-desc">Manage rides</span>
+            </a>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <a href="driver.html" class="driver-login-link">🔐 Driver Login</a>
+        </div>
+
+        <div class="footer">
+            <p>📍 Serving: Garissa • Wajir • Mandera • Lodwar • Isiolo • Marsabit • Moyale • Turbi</p>
+            <p style="margin-top: 10px;">© 2024 The King of Northern. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
