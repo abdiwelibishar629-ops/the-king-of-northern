@@ -14,7 +14,7 @@ app.use(express.static('.'));
 // SUPABASE POSTGRESQL CONNECTION
 // ============================================================
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: 'postgresql://postgres:HuEArV4ocZ1eomAC@db.mlwwcvccmwowuuobavko.supabase.co:5432/postgres',
     ssl: {
         rejectUnauthorized: false
     }
@@ -27,10 +27,29 @@ pool.connect()
 // ============================================================
 // JWT SECRET
 // ============================================================
-const JWT_SECRET = process.env.JWT_SECRET || 'king-of-northern-super-secret-key-2024';
+const JWT_SECRET = 'king-of-northern-super-secret-key-2024';
 
 // ============================================================
-// CREATE TABLES
+// PWA SUPPORT
+// ============================================================
+app.get('/sw.js', (req, res) => {
+    res.sendFile(__dirname + '/sw.js');
+});
+
+app.get('/manifest.json', (req, res) => {
+    res.sendFile(__dirname + '/manifest.json');
+});
+
+app.get('/driver-manifest.json', (req, res) => {
+    res.sendFile(__dirname + '/driver-manifest.json');
+});
+
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/index.html');
+});
+
+// ============================================================
+// CREATE TABLES AND TEST DRIVER
 // ============================================================
 async function createTables() {
     try {
@@ -85,6 +104,22 @@ async function createTables() {
             ON CONFLICT (email) DO NOTHING
         `, [testPassword]);
         console.log('✅ Test driver created: driver@test.com / driver123');
+
+        // Sample drivers
+        const samplePassword = await bcrypt.hash('driver123', 10);
+        const sampleDrivers = [
+            ['Ahmed Hassan', 'ahmed@example.com', '0712345678', samplePassword, 'DL002', 'Nissan Note', 'KDA 456B'],
+            ['Fatuma Ali', 'fatuma@example.com', '0723456789', samplePassword, 'DL003', 'Toyota Sienta', 'KEA 789C']
+        ];
+
+        for (const driver of sampleDrivers) {
+            await pool.query(`
+                INSERT INTO users (full_name, email, phone, password, role, driver_license, car_model, car_plate, is_verified, status)
+                VALUES ($1, $2, $3, $4, 'driver', $5, $6, $7, TRUE, 'available')
+                ON CONFLICT (email) DO NOTHING
+            `, driver);
+        }
+        console.log('✅ Sample drivers created');
 
     } catch (error) {
         console.error('❌ Table creation error:', error);
@@ -399,6 +434,7 @@ app.listen(PORT, () => {
     console.log(`👑 THE KING OF NORTHERN - Server running on port ${PORT}`);
     console.log(`📊 Database: PostgreSQL (Supabase)`);
     console.log(`📍 Service Area: Northern Kenya`);
+    console.log(`🚘 Vehicle Types: Sedan, Hatchback, MPV, SUV, Station Wagon`);
     console.log(`🔐 Auth System: Active (JWT + Email Verification)`);
     console.log(`🌐 Visit: http://localhost:${PORT}`);
     console.log(`👨‍✈️ Test Driver: driver@test.com / driver123`);
