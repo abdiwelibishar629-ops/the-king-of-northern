@@ -18,14 +18,16 @@
             justify-content: center;
             align-items: center;
             color: white;
+            padding: 20px;
         }
         .container {
             text-align: center;
             padding: 40px 20px;
             max-width: 600px;
+            width: 100%;
         }
         .logo {
-            font-size: 5rem;
+            font-size: 4rem;
             margin-bottom: 10px;
         }
         h1 {
@@ -97,6 +99,20 @@
             background: #f1c40f;
             color: #1a1a2e;
         }
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .logo-container .logo-img {
+            height: 60px;
+            width: auto;
+            border-radius: 12px;
+            background: white;
+            padding: 5px;
+        }
         @media (max-width: 480px) {
             .app-grid {
                 grid-template-columns: 1fr;
@@ -105,14 +121,23 @@
                 font-size: 1.8rem;
             }
             .logo {
-                font-size: 4rem;
+                font-size: 3rem;
+            }
+            .logo-container {
+                flex-direction: column;
+            }
+            .logo-container .logo-img {
+                height: 50px;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="logo">👑</div>
+        <!-- CUSTOMER LOGO on landing page -->
+        <div class="logo-container">
+            <img src="customer-logo.png" alt="Logo" class="logo-img" onerror="this.style.display='none'">
+        </div>
         <h1>The King of Northern</h1>
         <p class="subtitle">🚗 Northern Kenya's Premier Ride Hailing Service</p>
         <p class="tagline">Safe • Reliable • Affordable</p>
