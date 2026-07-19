@@ -14,6 +14,9 @@
     
     <link rel="stylesheet" href="style.css">
     <style>
+        /* ============================================================
+           DRIVER APP STYLES
+           ============================================================ */
         .logo-container {
             display: flex;
             justify-content: center;
@@ -40,6 +43,60 @@
             color: #bdc3c7;
             -webkit-text-fill-color: #bdc3c7;
         }
+
+        /* ============================================================
+           DOWNLOAD SECTION
+           ============================================================ */
+        .download-section {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border-radius: 15px;
+            padding: 25px 20px;
+            margin-top: 30px;
+            text-align: center;
+            border: 2px solid #2980b9;
+        }
+        .download-section h3 {
+            color: #3498db;
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+        }
+        .download-section p {
+            color: #bdc3c7;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+        }
+        .download-btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #2980b9, #3498db);
+            color: white;
+            padding: 14px 40px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 1.1rem;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+        .download-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(41, 128, 185, 0.4);
+        }
+        .download-btn .icon {
+            margin-right: 10px;
+        }
+        .app-name-footer {
+            color: #3498db;
+            font-weight: 600;
+            font-size: 1rem;
+            margin-top: 10px;
+        }
+        .app-version {
+            color: #7f8c8d;
+            font-size: 0.7rem;
+            margin-top: 5px;
+        }
+
         @media (max-width: 480px) {
             .logo-container {
                 flex-direction: column;
@@ -47,6 +104,11 @@
             }
             .logo-container .logo-img {
                 height: 50px;
+            }
+            .download-btn {
+                padding: 12px 30px;
+                font-size: 1rem;
+                width: 100%;
             }
         }
     </style>
@@ -56,8 +118,8 @@
     <header>
         <div class="header-content">
             <div class="logo-container">
-                <!-- DRIVER LOGO - Using .jpeg extension -->
-                <img src="driver-logo.png.jpeg" alt="Logo" class="logo-img" onerror="this.style.display='none'">
+                <!-- DRIVER LOGO -->
+                <img src="driver-logo.png" alt="Logo" class="logo-img" onerror="this.style.display='none'">
                 <div>
                     <span class="app-title">King of Northern</span>
                     <span class="app-subtitle">👨‍✈️ Driver</span>
@@ -69,16 +131,21 @@
 
     <div class="container">
 
+        <!-- Login Section -->
         <section id="login-section" class="driver-login">
             <h2>🔐 Driver Login</h2>
             <div class="form-group">
-                <input type="text" id="driver-username" placeholder="Username" value="driver">
-                <input type="password" id="driver-password" placeholder="Password" value="driver123">
+                <input type="text" id="driver-username" placeholder="Email or Phone">
+                <input type="password" id="driver-password" placeholder="Password">
                 <button onclick="driverLogin()" class="btn-request">🚗 Login</button>
             </div>
             <div id="login-status"></div>
+            <div style="text-align:center; margin-top:15px; font-size:0.85rem; color:#7f8c8d;">
+                <p>Demo: driver@test.com / driver123</p>
+            </div>
         </section>
 
+        <!-- Dashboard Section -->
         <section id="dashboard-section" style="display:none;">
             <div class="driver-profile">
                 <div class="driver-avatar">👨‍✈️</div>
@@ -100,19 +167,65 @@
             <div id="requests-container"></div>
         </section>
 
+        <!-- ============================================================
+             DOWNLOAD SECTION - DRIVER APP
+             ============================================================ -->
+        <section class="download-section">
+            <h3>📱 Download Driver App</h3>
+            <p>Install the King of Northern Driver app on your phone to accept rides on the go!</p>
+            <button onclick="downloadApp()" class="download-btn">
+                <span class="icon">📲</span> Download App
+            </button>
+            <div class="app-name-footer">👑 King of Northern - Driver</div>
+            <div class="app-version">Version 1.0 | Northern Kenya's Premier Ride</div>
+        </section>
+
     </div>
 
     <footer>
         <p>👑 King of Northern © 2024 | Driver Dashboard</p>
+        <p style="font-size:0.8rem; opacity:0.7;">Safe • Reliable • Affordable</p>
     </footer>
 
     <script>
+        // ============================================================
+        // SERVICE WORKER REGISTRATION
+        // ============================================================
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js')
-                .then(() => console.log('Service Worker registered'))
-                .catch(() => console.log('Service Worker registration failed'));
+                .then(() => console.log('✅ Service Worker registered'))
+                .catch(() => console.log('❌ Service Worker registration failed'));
         }
 
+        // ============================================================
+        // DOWNLOAD APP FUNCTION
+        // ============================================================
+        function downloadApp() {
+            // Check if the app is already installed (PWA)
+            if (window.matchMedia('(display-mode: standalone)').matches) {
+                alert('✅ App is already installed on your device!');
+                return;
+            }
+
+            // For Android - prompt PWA installation
+            if (navigator.userAgent.toLowerCase().indexOf('android') > -1) {
+                alert('📱 To install the app:\n\n1. Tap the three dots (⋮) in the top right\n2. Select "Add to Home screen"\n3. Tap "Install"\n\nThe app will appear on your home screen!');
+                return;
+            }
+
+            // For iOS - prompt PWA installation
+            if (navigator.userAgent.toLowerCase().indexOf('iphone') > -1 || navigator.userAgent.toLowerCase().indexOf('ipad') > -1) {
+                alert('📱 To install the app:\n\n1. Tap the Share icon (square with arrow)\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add"\n\nThe app will appear on your home screen!');
+                return;
+            }
+
+            // For desktop - show a message
+            alert('📱 Please open this page on your mobile device to install the app.\n\nOr click "Add to Home Screen" in your browser menu.');
+        }
+
+        // ============================================================
+        // DRIVER LOGIN
+        // ============================================================
         let driverToken = null;
         let currentDriver = null;
         let refreshInterval = null;
@@ -122,33 +235,32 @@
             const password = document.getElementById('driver-password').value.trim();
 
             if (!username || !password) {
-                alert('Please enter username and password');
+                alert('Please enter email/phone and password');
                 return;
             }
 
+            const loginBtn = document.querySelector('#login-section .btn-request');
+            loginBtn.disabled = true;
+            loginBtn.textContent = '⏳ Logging in...';
+
             try {
-                const res = await fetch('/api/driver-login', {
+                const res = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ email: username, phone: username, password })
                 });
 
                 const result = await res.json();
 
                 if (result.success) {
                     driverToken = result.token;
-                    
-                    const driversRes = await fetch('/api/drivers');
-                    const drivers = await driversRes.json();
-                    if (drivers.length > 0) {
-                        currentDriver = drivers[0];
-                    }
+                    currentDriver = result.user;
 
                     document.getElementById('login-section').style.display = 'none';
                     document.getElementById('dashboard-section').style.display = 'block';
-                    document.getElementById('driver-name-display').textContent = currentDriver ? currentDriver.name : 'Driver';
+                    document.getElementById('driver-name-display').textContent = currentDriver.fullName;
                     document.getElementById('driver-vehicle-display').textContent = 
-                        currentDriver ? `🚗 ${currentDriver.car} (${currentDriver.type}) - ${currentDriver.plate}` : '';
+                        `🚗 ${currentDriver.carModel || 'No car'} (${currentDriver.carPlate || 'No plate'})`;
 
                     loadRequests();
                     refreshInterval = setInterval(loadRequests, 5000);
@@ -161,6 +273,9 @@
                 document.getElementById('login-status').innerHTML = `
                     <div class="error-message">❌ Error connecting to server</div>
                 `;
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.textContent = '🚗 Login';
             }
         }
 
@@ -172,6 +287,9 @@
             document.getElementById('dashboard-section').style.display = 'none';
         }
 
+        // ============================================================
+        // LOAD REQUESTS
+        // ============================================================
         async function loadRequests() {
             try {
                 const res = await fetch('/api/driver/requests');
@@ -199,12 +317,12 @@
                             <span class="status-badge pending">⏳ Pending</span>
                         </div>
                         <div class="request-body">
-                            <p><strong>👤 Customer:</strong> ${req.customerName}</p>
-                            <p><strong>📞 Phone:</strong> ${req.phone}</p>
+                            <p><strong>👤 Customer:</strong> ${req.customer_name}</p>
+                            <p><strong>📞 Phone:</strong> ${req.customer_phone}</p>
                             <p><strong>📍 Pickup:</strong> ${req.pickup}</p>
                             <p><strong>🏁 Destination:</strong> ${req.destination}</p>
-                            <p><strong>🚘 Vehicle:</strong> ${req.vehicleType || 'Any'}</p>
-                            <p><strong>⏱️ Requested:</strong> ${new Date(req.timestamp).toLocaleString()}</p>
+                            <p><strong>🚘 Vehicle:</strong> ${req.vehicle_type || 'Any'}</p>
+                            <p><strong>⏱️ Requested:</strong> ${new Date(req.created_at).toLocaleString()}</p>
                         </div>
                         <div class="request-actions">
                             <button onclick="confirmRide(${req.id})" class="btn-confirm">✅ Confirm Ride</button>
@@ -217,7 +335,10 @@
             }
         }
 
-        async function confirmRide(requestId) {
+        // ============================================================
+        // CONFIRM RIDE
+        // ============================================================
+        async function confirmRide(rideId) {
             if (!currentDriver) {
                 alert('Please login again.');
                 return;
@@ -227,13 +348,13 @@
                 const res = await fetch('/api/driver/confirm-ride', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ requestId, driverId: currentDriver.id })
+                    body: JSON.stringify({ rideId, driverId: currentDriver.id })
                 });
 
                 const result = await res.json();
 
                 if (result.success) {
-                    alert(`✅ Ride confirmed!\n\n🚗 ${result.driver.name}\n📞 ${result.driver.phone}\n🚘 ${result.driver.type} (${result.driver.seats} seats)\n🔢 ${result.driver.plate}`);
+                    alert(`✅ Ride confirmed!\n\n🚗 ${result.driver.name}\n📞 ${result.driver.phone}\n🔢 ${result.driver.plate}`);
                     loadRequests();
                 } else {
                     alert('❌ ' + result.error);
@@ -243,14 +364,17 @@
             }
         }
 
-        async function completeRide(requestId) {
+        // ============================================================
+        // COMPLETE RIDE
+        // ============================================================
+        async function completeRide(rideId) {
             if (!confirm('Mark this ride as completed?')) return;
 
             try {
                 const res = await fetch('/api/driver/complete-ride', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ requestId, driverId: currentDriver.id })
+                    body: JSON.stringify({ rideId, driverId: currentDriver.id })
                 });
 
                 const result = await res.json();
