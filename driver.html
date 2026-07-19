@@ -3,25 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>👑 The King of Northern - Driver</title>
+    <title>👑 King of Northern - Driver</title>
     
     <!-- PWA Support -->
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="/driver-manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="King Northern">
+    <meta name="apple-mobile-web-app-title" content="King Driver">
     <meta name="mobile-web-app-capable" content="yes">
     
     <link rel="stylesheet" href="style.css">
+    <style>
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+        .logo-container .logo-img {
+            height: 60px;
+            width: auto;
+            border-radius: 12px;
+            background: white;
+            padding: 5px;
+        }
+        .logo-container .app-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #f1c40f, #f39c12);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .logo-container .app-subtitle {
+            font-size: 0.8rem;
+            color: #bdc3c7;
+            -webkit-text-fill-color: #bdc3c7;
+        }
+        @media (max-width: 480px) {
+            .logo-container {
+                flex-direction: column;
+                text-align: center;
+            }
+            .logo-container .logo-img {
+                height: 50px;
+            }
+        }
+    </style>
 </head>
 <body>
 
     <header>
         <div class="header-content">
-            <div class="logo">
-                <img src="logo.png" alt="Logo" class="logo-img" onerror="this.style.display='none'">
-                <span class="crown">👑</span>
-                <h1>The King of Northern</h1>
+            <div class="logo-container">
+                <!-- DRIVER LOGO - Change this to your driver logo filename -->
+                <img src="driver-logo.png" alt="Logo" class="logo-img" onerror="this.style.display='none'">
+                <div>
+                    <span class="app-title">King of Northern</span>
+                    <span class="app-subtitle">👨‍✈️ Driver</span>
+                </div>
             </div>
             <span class="tagline">🚗 Driver App</span>
         </div>
@@ -63,19 +103,16 @@
     </div>
 
     <footer>
-        <p>👑 The King of Northern © 2024 | Driver Dashboard</p>
+        <p>👑 King of Northern © 2024 | Driver Dashboard</p>
     </footer>
 
-    <!-- Register Service Worker -->
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js')
                 .then(() => console.log('Service Worker registered'))
                 .catch(() => console.log('Service Worker registration failed'));
         }
-    </script>
 
-    <script>
         let driverToken = null;
         let currentDriver = null;
         let refreshInterval = null;
